@@ -395,7 +395,7 @@
     });
     await deck.initialize();
 
-    const ctx = ui.overlay.getContext("2d");
+    let ctx = null;
 
     const DEFAULT_CONFIG = {
       frameSkip: 2,
@@ -424,6 +424,19 @@
     let frameCounter = 0;
     let frameSeq = 0;
     let workerBusy = false;
+    let isOffscreenMode = false;
+
+    function initializeRenderingMode() {
+      // Preferujemy tryb OffscreenCanvas, aby odciążyć główny wątek UI.
+      isOffscreenMode = typeof ui.overlay.transferControlToOffscreen === "function";
+      if (isOffscreenMode) {
+        // W trybie Offscreen nie pobieramy kontekstu 2D na głównym wątku.
+        ctx = null;
+      } else if (!ctx) {
+        // Fallback: rysowanie pozostaje na głównym wątku.
+        ctx = ui.overlay.getContext("2d");
+      }
+    }
 
     function setText(el, text, cls) {
       el.textContent = text;
@@ -464,6 +477,7 @@
     }
 
     function drawActiveZone() {
+      if (isOffscreenMode || !ctx) return;
       ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
       const { xMin, xMax, yMin, yMax } = config.activeZone;
       const x = xMin * ui.overlay.width;
@@ -479,6 +493,7 @@
     }
 
     function drawLandmarks(landmarks) {
+      if (isOffscreenMode || !ctx) return;
       drawActiveZone();
       if (!landmarks || !landmarks.length) return;
       ctx.save();
@@ -604,7 +619,7 @@
           workerReady = true;
           setText(ui.workerStatus, "gotowy", "value-ok");
           syncConfigToWorker();
-          if (offscreen) {
+          if (isOffscreenMode && offscreen) {
             worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
             offscreen = null;
           }
@@ -617,8 +632,10 @@
             ui.metricDirection.textContent = msg.metrics.direction || "brak";
             ui.metricPresence.textContent = Number(msg.metrics.presence || 0).toFixed(3);
           }
-          if (msg.landmarks) drawLandmarks(msg.landmarks);
-          else drawActiveZone();
+          if (!isOffscreenMode) {
+            if (msg.landmarks) drawLandmarks(msg.landmarks);
+            else drawActiveZone();
+          }
         } else if (msg.type === "gesture") {
           if (msg.action === "next") {
             deck.next();
@@ -631,8 +648,10 @@
           }
         } else if (msg.type === "processed") {
           workerBusy = false;
-          if (msg.landmarks) drawLandmarks(msg.landmarks);
-          else drawActiveZone();
+          if (!isOffscreenMode) {
+            if (msg.landmarks) drawLandmarks(msg.landmarks);
+            else drawActiveZone();
+          }
         } else if (msg.type === "error") {
           setText(ui.workerStatus, "błąd", "value-err");
           markAction(`błąd workera: ${msg.message}`, "value-err");
@@ -684,11 +703,13 @@
         captureCanvas.height = 240;
         captureCtx = captureCanvas.getContext("2d", { willReadFrequently: false });
 
-        if (!offscreen && "transferControlToOffscreen" in ui.overlay) {
+        // Inicjalizacja ścieżki renderowania: Offscreen (preferowany) albo fallback na głównym wątku.
+        initializeRenderingMode();
+        if (isOffscreenMode && !offscreen) {
           offscreen = ui.overlay.transferControlToOffscreen();
         }
 
-        if (workerReady && offscreen) {
+        if (isOffscreenMode && workerReady && offscreen) {
           worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
           offscreen = null;
         }
@@ -797,6 +818,7 @@
       drawActiveZone();
     });
 
+    initializeRenderingMode();
     updateConfigInputs();
     setPaused(true);
     setText(ui.cameraStatus, "nieuruchomiona", "value-muted");
