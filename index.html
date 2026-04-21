@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reveal.js + MediaPipe hand gesture</title>
-  <link rel="icon" href="data:,">
+  <title>Reveal.js + MediaPipe hand gesture (Web Worker)</title>
 
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css" id="theme" />
 
@@ -17,7 +17,6 @@
       --warn: #ffcc66;
       --err: #ff6b6b;
       --muted: #a9b0bd;
-      --text: #ffffff;
     }
 
     html, body {
@@ -26,7 +25,6 @@
       background: #111;
       overflow: hidden;
       font-family: Inter, system-ui, sans-serif;
-      color: var(--text);
     }
 
     .reveal {
@@ -43,28 +41,25 @@
       pointer-events: none;
       transition: opacity 140ms ease;
     }
-
     #flash.visible { opacity: 1; }
-
-    #hud, #debugPanel, #bootOverlay {
-      backdrop-filter: blur(10px);
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
 
     #hud {
       position: fixed;
       top: 12px;
       right: 12px;
       width: 340px;
-      z-index: 30;
+      z-index: 40;
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
       border-radius: 14px;
       padding: 12px;
       color: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
     }
 
-    #hud h1, #debugPanel h2 {
+    #hud h1 {
       margin: 0 0 8px 0;
       font-size: 16px;
       font-weight: 700;
@@ -83,19 +78,6 @@
     .value-warn { color: var(--warn); }
     .value-err { color: var(--err); }
 
-    #errorBox {
-      display: none;
-      margin-top: 10px;
-      font-size: 12px;
-      line-height: 1.4;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,107,107,0.35);
-      background: rgba(255,107,107,0.12);
-      color: #ffd6d6;
-      white-space: pre-wrap;
-    }
-
     #cameraWrap {
       margin-top: 10px;
       border-radius: 10px;
@@ -106,7 +88,7 @@
       aspect-ratio: 4 / 3;
     }
 
-    #camera, #overlay {
+    #camera, #overlay, #cameraPlaceholder {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -115,20 +97,21 @@
       transform: scaleX(-1);
     }
 
-    #cameraPlaceholder {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      padding: 16px;
-      color: #d9dce3;
-      font-size: 13px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06));
-      z-index: 1;
+    #overlay, #cameraPlaceholder, #flash {
+      pointer-events: none;
     }
 
-    #cameraWrap.active #cameraPlaceholder { display: none; }
+    #cameraPlaceholder {
+      display: grid;
+      place-items: center;
+      color: #d8dde8;
+      background:
+        radial-gradient(circle at center, rgba(127,214,255,0.12), rgba(0,0,0,0.9)),
+        linear-gradient(135deg, #08131f, #111);
+      text-align: center;
+      font-size: 13px;
+      padding: 16px;
+    }
 
     #controls {
       display: grid;
@@ -137,11 +120,8 @@
       margin-top: 10px;
     }
 
-    button, input[type="range"] {
-      appearance: none;
-    }
-
     button {
+      appearance: none;
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 10px;
       background: rgba(255,255,255,0.08);
@@ -149,6 +129,10 @@
       padding: 10px 12px;
       font-size: 13px;
       cursor: pointer;
+      pointer-events: auto;
+      touch-action: manipulation;
+      position: relative;
+      z-index: 2;
     }
 
     button:hover { background: rgba(255,255,255,0.14); }
@@ -166,91 +150,47 @@
       color: var(--muted);
     }
 
-    #bootOverlay {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      display: grid;
-      place-items: center;
-      background: rgba(0,0,0,0.64);
-    }
-
-    #bootCard {
-      width: min(680px, calc(100vw - 32px));
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.16);
-      background: rgba(10, 12, 18, 0.86);
-      padding: 22px;
-    }
-
-    #bootCard h2 {
-      margin: 0 0 12px 0;
-      font-size: 24px;
-    }
-
-    #bootCard p {
-      margin: 8px 0;
-      line-height: 1.5;
-      color: #d9dce3;
-    }
-
-    #bootActions {
-      display: flex;
-      gap: 10px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-
     #debugPanel {
       position: fixed;
       left: 12px;
-      top: 12px;
-      width: min(420px, calc(100vw - 24px));
-      max-height: calc(100vh - 24px);
+      bottom: 12px;
+      z-index: 41;
+      width: min(520px, calc(100vw - 24px));
+      max-height: 72vh;
       overflow: auto;
-      z-index: 31;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 14px;
       padding: 12px;
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.92);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      color: #fff;
       display: none;
+      pointer-events: auto;
     }
-
     #debugPanel.visible { display: block; }
-
-    .metricGrid {
+    #debugPanel h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+    .grid2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px 12px;
-      margin: 10px 0 12px;
-      font-size: 12px;
+      grid-template-columns: 1fr 92px;
+      gap: 8px 10px;
+      align-items: center;
     }
-
-    .configRow {
-      margin: 10px 0;
+    .grid2 label {
+      font-size: 13px;
+      color: #e8edf7;
     }
-
-    .configRow label {
-      display: block;
-      font-size: 12px;
-      color: #d9dce3;
-      margin-bottom: 6px;
-    }
-
-    .configValue {
-      color: var(--ok);
-      font-variant-numeric: tabular-nums;
-      margin-left: 6px;
-    }
-
-    input[type="range"] {
+    .grid2 input {
       width: 100%;
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.18);
-      outline: none;
+      box-sizing: border-box;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px;
     }
-
     #debugActions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -258,21 +198,58 @@
       margin-top: 12px;
     }
 
-    #hud, #debugPanel, #bootOverlay, #bootCard, #controls, #bootActions {
+    #bootOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      background: rgba(5, 8, 12, 0.72);
+      backdrop-filter: blur(10px);
       pointer-events: auto;
     }
 
-    #hud button, #debugPanel button, #bootOverlay button {
+    #bootCard {
+      width: min(560px, calc(100vw - 32px));
+      background: rgba(10, 15, 22, 0.92);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
       pointer-events: auto;
-      touch-action: manipulation;
-      position: relative;
-      z-index: 2;
     }
 
-    #overlay, #cameraPlaceholder, #flash {
-      pointer-events: none;
+    #bootCard h2 {
+      margin: 0 0 8px 0;
+      font-size: 22px;
     }
 
+    #bootCard p {
+      margin: 8px 0;
+      color: #d9dfeb;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    #bootError {
+      margin-top: 10px;
+      display: none;
+      color: #ffd6d6;
+      background: rgba(255, 107, 107, 0.14);
+      border: 1px solid rgba(255,107,107,0.35);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
+    #bootActions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
@@ -280,8 +257,8 @@
     <div class="slides">
       <section
         data-markdown="./slides.md"
-        data-separator="^\\r?\\n---\\r?\\n$"
-        data-separator-vertical="^\\r?\\n--\\r?\\n$"
+        data-separator="^\r?\n---\r?\n$"
+        data-separator-vertical="^\r?\n--\r?\n$"
         data-separator-notes="^Note:"
       ></section>
     </div>
@@ -289,11 +266,72 @@
 
   <div id="flash"></div>
 
+  <aside id="hud" aria-live="polite">
+    <h1>Sterowanie gestem dłoni</h1>
+    <div class="row"><span>Status kamery</span><span id="cameraStatus" class="value-muted">nieuruchomiona</span></div>
+    <div class="row"><span>Status workera</span><span id="workerStatus" class="value-muted">niezaładowany</span></div>
+    <div class="row"><span>Detekcja dłoni</span><span id="handStatus" class="value-muted">brak</span></div>
+    <div class="row"><span>Ostatnia akcja</span><span id="lastAction" class="value-muted">brak</span></div>
+    <div class="row"><span>Tryb</span><span id="modeStatus" class="value-warn">pauza</span></div>
+
+    <div id="cameraWrap">
+      <video id="camera" playsinline muted autoplay></video>
+      <canvas id="overlay"></canvas>
+      <div id="cameraPlaceholder">Kamera nie została uruchomiona.<br />Kliknij przycisk startu lub naciśnij <strong>d</strong>, aby otworzyć debug.</div>
+    </div>
+
+    <div id="controls">
+      <button id="startBtn">Uruchom kamerę i detekcję</button>
+      <button id="toggleBtn" disabled>Wznów detekcję</button>
+      <button id="prevBtn">◀ Poprzedni</button>
+      <button id="nextBtn">Następny ▶</button>
+    </div>
+
+    <div id="help">
+      Gest: wyraźne machnięcie otwartą dłonią w prawo = następny slajd, w lewo = poprzedni slajd.<br />
+      Klawisze: <strong>d</strong> = debug/config, <strong>f</strong> = fullscreen.<br />
+      <span class="small">Wersja worker: detekcja działa poza głównym wątkiem UI.</span>
+    </div>
+  </aside>
+
+  <aside id="debugPanel" aria-live="polite">
+    <h2>Debug / konfiguracja</h2>
+
+    <div class="row"><span>deltaX</span><span id="metricDeltaX" class="value-muted">0.000</span></div>
+    <div class="row"><span>deltaY</span><span id="metricDeltaY" class="value-muted">0.000</span></div>
+    <div class="row"><span>Kierunek</span><span id="metricDirection" class="value-muted">brak</span></div>
+    <div class="row"><span>Pewność dłoni</span><span id="metricPresence" class="value-muted">0.000</span></div>
+
+    <div class="grid2">
+      <label for="frameSkip">Frame skip</label><input id="frameSkip" type="number" min="1" max="10" step="1" />
+      <label for="cooldownMs">Cooldown [ms]</label><input id="cooldownMs" type="number" min="100" max="4000" step="10" />
+      <label for="historyWindowMs">Okno historii [ms]</label><input id="historyWindowMs" type="number" min="80" max="1500" step="10" />
+      <label for="minDeltaXRatio">Min. delta X</label><input id="minDeltaXRatio" type="number" min="0.02" max="0.8" step="0.01" />
+      <label for="maxDeltaYRatio">Max. delta Y</label><input id="maxDeltaYRatio" type="number" min="0.02" max="0.8" step="0.01" />
+      <label for="readyHoldMs">Ready hold [ms]</label><input id="readyHoldMs" type="number" min="0" max="1000" step="10" />
+      <label for="openPalmMinExtendedFingers">Min. wyprostowane palce</label><input id="openPalmMinExtendedFingers" type="number" min="1" max="5" step="1" />
+      <label for="minPalmWidthRatio">Min. szerokość dłoni</label><input id="minPalmWidthRatio" type="number" min="0.02" max="0.6" step="0.01" />
+      <label for="zoneXMin">Strefa X min</label><input id="zoneXMin" type="number" min="0" max="1" step="0.01" />
+      <label for="zoneXMax">Strefa X max</label><input id="zoneXMax" type="number" min="0" max="1" step="0.01" />
+      <label for="zoneYMin">Strefa Y min</label><input id="zoneYMin" type="number" min="0" max="1" step="0.01" />
+      <label for="zoneYMax">Strefa Y max</label><input id="zoneYMax" type="number" min="0" max="1" step="0.01" />
+    </div>
+
+    <div id="debugActions">
+      <button id="saveConfigBtn">Zapisz ustawienia</button>
+      <button id="resetConfigBtn">Reset ustawień</button>
+      <button id="testPrevBtn">Test: poprzedni</button>
+      <button id="testNextBtn">Test: następny</button>
+      <button id="closeDebugBtn">Zamknij panel</button>
+    </div>
+  </aside>
+
   <div id="bootOverlay">
     <div id="bootCard">
-      <h2>Prezentacja sterowana gestami</h2>
-      <p>Kliknij przycisk poniżej, aby załadować model MediaPipe i uruchomić kamerę. Przeglądarka poprosi o zgodę na dostęp do kamery.</p>
-      <p>Gesty: ruch dłonią w prawo = następny slajd, ruch w lewo = poprzedni slajd. Klawisz <strong>d</strong> przełącza panel diagnostyczny, a <strong>f</strong> pełny ekran.</p>
+      <h2>Uruchom prezentację sterowaną gestami</h2>
+      <p>Kliknij, aby uruchomić kamerę i detekcję gestów. W tej wersji MediaPipe działa w Web Workerze, żeby nie blokować głównego wątku Reveal.js.</p>
+      <p>Jeśli kamera nie wystartuje, zobaczysz dokładny komunikat błędu.</p>
+      <div id="bootError"></div>
       <div id="bootActions">
         <button id="bootStartBtn">Uruchom kamerę i detekcję</button>
         <button id="bootDismissBtn">Uruchom bez kamery</button>
@@ -301,89 +339,64 @@
     </div>
   </div>
 
-  <aside id="hud" aria-live="polite">
-    <h1>Sterowanie gestem dłoni</h1>
-    <div class="row"><span>Status kamery</span><span id="cameraStatus" class="value-muted">nieuruchomiona</span></div>
-    <div class="row"><span>Status modelu</span><span id="modelStatus" class="value-muted">niezaładowany</span></div>
-    <div class="row"><span>Detekcja dłoni</span><span id="handStatus" class="value-muted">brak</span></div>
-    <div class="row"><span>Ostatnia akcja</span><span id="lastAction" class="value-muted">brak</span></div>
-    <div class="row"><span>Tryb</span><span id="modeStatus" class="value-warn">pauza</span></div>
-
-    <div id="errorBox"></div>
-
-    <div id="cameraWrap">
-      <div id="cameraPlaceholder">Obraz z kamery pojawi się tutaj po uruchomieniu modułu.<br />Jeśli nic się nie pojawi, wciśnij <strong>d</strong> i sprawdź szczegóły błędu.</div>
-      <video id="camera" playsinline muted autoplay></video>
-      <canvas id="overlay"></canvas>
-    </div>
-
-    <div id="controls">
-      <button id="startBtn">Uruchom kamerę</button>
-      <button id="toggleBtn" disabled>Wznów detekcję</button>
-      <button id="prevBtn">◀ Poprzedni</button>
-      <button id="nextBtn">Następny ▶</button>
-    </div>
-
-    <div id="help">
-      Gesty: wyraźny ruch otwartej dłoni w prawo lub w lewo w obrębie obszaru kamery.<br />
-      Skróty: <strong>d</strong> debug, <strong>f</strong> fullscreen.<br />
-      <span class="small">Wydajność: kamera 320×240, analiza co drugą klatkę, 1 dłoń. GitHub Pages działa przez HTTPS, więc kamera może być uruchamiana bez lokalnego serwera.</span>
-    </div>
-  </aside>
-
-  <aside id="debugPanel" aria-live="polite">
-    <h2>Debug i konfiguracja</h2>
-    <div class="metricGrid">
-      <div>deltaX: <span id="metricDeltaX" class="value-ok">0.000</span></div>
-      <div>deltaY: <span id="metricDeltaY" class="value-ok">0.000</span></div>
-      <div>kierunek: <span id="metricDirection" class="value-ok">brak</span></div>
-      <div>palce: <span id="metricFingers" class="value-ok">0</span></div>
-      <div>szer. dłoni: <span id="metricPalmWidth" class="value-ok">0.000</span></div>
-      <div>historia: <span id="metricHistory" class="value-ok">0</span></div>
-    </div>
-
-    <div class="configRow">
-      <label for="cfgCooldownMs">Cooldown po geście <span class="configValue" id="cfgCooldownMsValue"></span></label>
-      <input id="cfgCooldownMs" type="range" min="500" max="2500" step="50" />
-    </div>
-    <div class="configRow">
-      <label for="cfgHistoryWindowMs">Okno historii ruchu <span class="configValue" id="cfgHistoryWindowMsValue"></span></label>
-      <input id="cfgHistoryWindowMs" type="range" min="200" max="700" step="10" />
-    </div>
-    <div class="configRow">
-      <label for="cfgMinDeltaXRatio">Minimalny ruch poziomy <span class="configValue" id="cfgMinDeltaXRatioValue"></span></label>
-      <input id="cfgMinDeltaXRatio" type="range" min="0.08" max="0.50" step="0.01" />
-    </div>
-    <div class="configRow">
-      <label for="cfgMaxDeltaYRatio">Maksymalny ruch pionowy <span class="configValue" id="cfgMaxDeltaYRatioValue"></span></label>
-      <input id="cfgMaxDeltaYRatio" type="range" min="0.05" max="0.40" step="0.01" />
-    </div>
-    <div class="configRow">
-      <label for="cfgReadyHoldMs">Czas gotowości dłoni <span class="configValue" id="cfgReadyHoldMsValue"></span></label>
-      <input id="cfgReadyHoldMs" type="range" min="0" max="500" step="10" />
-    </div>
-    <div class="configRow">
-      <label for="cfgOpenPalmMinExtendedFingers">Minimalna liczba wyprostowanych palców <span class="configValue" id="cfgOpenPalmMinExtendedFingersValue"></span></label>
-      <input id="cfgOpenPalmMinExtendedFingers" type="range" min="1" max="5" step="1" />
-    </div>
-    <div class="configRow">
-      <label for="cfgMinPalmWidthRatio">Minimalna szerokość dłoni <span class="configValue" id="cfgMinPalmWidthRatioValue"></span></label>
-      <input id="cfgMinPalmWidthRatio" type="range" min="0.04" max="0.30" step="0.01" />
-    </div>
-
-    <div id="debugActions">
-      <button id="resetConfigBtn">Przywróć domyślne progi</button>
-      <button id="closeDebugBtn">Zamknij debug</button>
-    </div>
-  </aside>
-
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/markdown/markdown.js"></script>
 
   <script type="module">
-    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm";
+    const ui = {
+      cameraStatus: document.getElementById("cameraStatus"),
+      workerStatus: document.getElementById("workerStatus"),
+      handStatus: document.getElementById("handStatus"),
+      lastAction: document.getElementById("lastAction"),
+      modeStatus: document.getElementById("modeStatus"),
+      startBtn: document.getElementById("startBtn"),
+      toggleBtn: document.getElementById("toggleBtn"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      video: document.getElementById("camera"),
+      overlay: document.getElementById("overlay"),
+      flash: document.getElementById("flash"),
+      cameraPlaceholder: document.getElementById("cameraPlaceholder"),
+      debugPanel: document.getElementById("debugPanel"),
+      saveConfigBtn: document.getElementById("saveConfigBtn"),
+      resetConfigBtn: document.getElementById("resetConfigBtn"),
+      testPrevBtn: document.getElementById("testPrevBtn"),
+      testNextBtn: document.getElementById("testNextBtn"),
+      closeDebugBtn: document.getElementById("closeDebugBtn"),
+      bootOverlay: document.getElementById("bootOverlay"),
+      bootStartBtn: document.getElementById("bootStartBtn"),
+      bootDismissBtn: document.getElementById("bootDismissBtn"),
+      bootError: document.getElementById("bootError"),
+      metricDeltaX: document.getElementById("metricDeltaX"),
+      metricDeltaY: document.getElementById("metricDeltaY"),
+      metricDirection: document.getElementById("metricDirection"),
+      metricPresence: document.getElementById("metricPresence"),
+      frameSkip: document.getElementById("frameSkip"),
+      cooldownMs: document.getElementById("cooldownMs"),
+      historyWindowMs: document.getElementById("historyWindowMs"),
+      minDeltaXRatio: document.getElementById("minDeltaXRatio"),
+      maxDeltaYRatio: document.getElementById("maxDeltaYRatio"),
+      readyHoldMs: document.getElementById("readyHoldMs"),
+      openPalmMinExtendedFingers: document.getElementById("openPalmMinExtendedFingers"),
+      minPalmWidthRatio: document.getElementById("minPalmWidthRatio"),
+      zoneXMin: document.getElementById("zoneXMin"),
+      zoneXMax: document.getElementById("zoneXMax"),
+      zoneYMin: document.getElementById("zoneYMin"),
+      zoneYMax: document.getElementById("zoneYMax")
+    };
 
-    const STORAGE_KEY = "reveal-gesture-config-v2";
+    const deck = new Reveal({
+      hash: true,
+      controls: true,
+      progress: true,
+      center: true,
+      transition: "slide",
+      plugins: [ RevealMarkdown ]
+    });
+    await deck.initialize();
+
+    const ctx = ui.overlay.getContext("2d");
+
     const DEFAULT_CONFIG = {
       frameSkip: 2,
       cooldownMs: 1200,
@@ -396,142 +409,25 @@
       activeZone: { xMin: 0.10, xMax: 0.90, yMin: 0.10, yMax: 0.90 }
     };
 
-    const config = loadConfig();
-    const ui = {
-      cameraStatus: document.getElementById("cameraStatus"),
-      modelStatus: document.getElementById("modelStatus"),
-      handStatus: document.getElementById("handStatus"),
-      lastAction: document.getElementById("lastAction"),
-      modeStatus: document.getElementById("modeStatus"),
-      startBtn: document.getElementById("startBtn"),
-      toggleBtn: document.getElementById("toggleBtn"),
-      prevBtn: document.getElementById("prevBtn"),
-      nextBtn: document.getElementById("nextBtn"),
-      bootOverlay: document.getElementById("bootOverlay"),
-      bootStartBtn: document.getElementById("bootStartBtn"),
-      bootDismissBtn: document.getElementById("bootDismissBtn"),
-      video: document.getElementById("camera"),
-      overlay: document.getElementById("overlay"),
-      flash: document.getElementById("flash"),
-      errorBox: document.getElementById("errorBox"),
-      cameraWrap: document.getElementById("cameraWrap"),
-      debugPanel: document.getElementById("debugPanel"),
-      closeDebugBtn: document.getElementById("closeDebugBtn"),
-      resetConfigBtn: document.getElementById("resetConfigBtn"),
-      metricDeltaX: document.getElementById("metricDeltaX"),
-      metricDeltaY: document.getElementById("metricDeltaY"),
-      metricDirection: document.getElementById("metricDirection"),
-      metricFingers: document.getElementById("metricFingers"),
-      metricPalmWidth: document.getElementById("metricPalmWidth"),
-      metricHistory: document.getElementById("metricHistory")
-    };
-
-    const debugInputs = {
-      cooldownMs: document.getElementById("cfgCooldownMs"),
-      historyWindowMs: document.getElementById("cfgHistoryWindowMs"),
-      minDeltaXRatio: document.getElementById("cfgMinDeltaXRatio"),
-      maxDeltaYRatio: document.getElementById("cfgMaxDeltaYRatio"),
-      readyHoldMs: document.getElementById("cfgReadyHoldMs"),
-      openPalmMinExtendedFingers: document.getElementById("cfgOpenPalmMinExtendedFingers"),
-      minPalmWidthRatio: document.getElementById("cfgMinPalmWidthRatio")
-    };
-
-    const debugValueEls = {
-      cooldownMs: document.getElementById("cfgCooldownMsValue"),
-      historyWindowMs: document.getElementById("cfgHistoryWindowMsValue"),
-      minDeltaXRatio: document.getElementById("cfgMinDeltaXRatioValue"),
-      maxDeltaYRatio: document.getElementById("cfgMaxDeltaYRatioValue"),
-      readyHoldMs: document.getElementById("cfgReadyHoldMsValue"),
-      openPalmMinExtendedFingers: document.getElementById("cfgOpenPalmMinExtendedFingersValue"),
-      minPalmWidthRatio: document.getElementById("cfgMinPalmWidthRatioValue")
-    };
-
-    const ctx = ui.overlay.getContext("2d");
-    const deck = new Reveal({
-      hash: true,
-      controls: true,
-      progress: true,
-      center: true,
-      transition: "slide",
-      plugins: [RevealMarkdown]
-    });
-    await deck.initialize();
-
+    const CONFIG_KEY = "gestureRevealWorkerConfigV1";
+    let config = loadConfig();
+    let worker = null;
     let cameraStream = null;
-    let handLandmarker = null;
+    let offscreen = null;
+    let captureCanvas = null;
+    let captureCtx = null;
     let detectionPaused = true;
-    let lastVideoTime = -1;
+    let workerReady = false;
+    let cameraReady = false;
+    let debugVisible = false;
     let rafId = null;
     let frameCounter = 0;
-    let lastTriggerAt = 0;
-    let readySince = null;
-    let xHistory = [];
-    let debugVisible = false;
-    let startedOnce = false;
-
-    syncDebugControls();
-
-    function loadConfig() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return structuredClone(DEFAULT_CONFIG);
-        const parsed = JSON.parse(raw);
-        return {
-          ...structuredClone(DEFAULT_CONFIG),
-          ...parsed,
-          activeZone: { ...DEFAULT_CONFIG.activeZone, ...(parsed.activeZone || {}) }
-        };
-      } catch {
-        return structuredClone(DEFAULT_CONFIG);
-      }
-    }
-
-    function saveConfig() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    }
-
-    function syncDebugControls() {
-      for (const [key, input] of Object.entries(debugInputs)) {
-        input.value = String(config[key]);
-        debugValueEls[key].textContent = formatConfigValue(key, config[key]);
-      }
-    }
-
-    function formatConfigValue(key, value) {
-      if (key.endsWith("Ms")) return `${Math.round(Number(value))} ms`;
-      if (Number.isInteger(Number(value))) return String(value);
-      return Number(value).toFixed(2);
-    }
-
-    for (const [key, input] of Object.entries(debugInputs)) {
-      input.addEventListener("input", () => {
-        const value = key === "openPalmMinExtendedFingers" ? Number.parseInt(input.value, 10) : Number.parseFloat(input.value);
-        config[key] = value;
-        debugValueEls[key].textContent = formatConfigValue(key, value);
-        saveConfig();
-      });
-    }
-
-    ui.resetConfigBtn.addEventListener("click", () => {
-      Object.assign(config, structuredClone(DEFAULT_CONFIG));
-      syncDebugControls();
-      saveConfig();
-      markAction("przywrócono domyślne ustawienia");
-    });
+    let frameSeq = 0;
+    let workerBusy = false;
 
     function setText(el, text, cls) {
       el.textContent = text;
       el.className = cls;
-    }
-
-    function showError(message) {
-      ui.errorBox.style.display = "block";
-      ui.errorBox.textContent = message;
-    }
-
-    function clearError() {
-      ui.errorBox.style.display = "none";
-      ui.errorBox.textContent = "";
     }
 
     function pulseFlash() {
@@ -539,10 +435,25 @@
       setTimeout(() => ui.flash.classList.remove("visible"), 120);
     }
 
+    function markAction(text, cls = "value-ok") {
+      setText(ui.lastAction, text, cls);
+    }
+
+    function showBootError(message) {
+      ui.bootError.style.display = "block";
+      ui.bootError.textContent = message;
+    }
+
+    function clearBootError() {
+      ui.bootError.style.display = "none";
+      ui.bootError.textContent = "";
+    }
+
     function setOverlaySize() {
       const rect = ui.video.getBoundingClientRect();
-      ui.overlay.width = Math.max(1, Math.round(rect.width));
-      ui.overlay.height = Math.max(1, Math.round(rect.height));
+      ui.overlay.width = rect.width || 320;
+      ui.overlay.height = rect.height || 240;
+      drawActiveZone();
     }
 
     function normalizedToCanvas(point) {
@@ -552,12 +463,8 @@
       };
     }
 
-    function clearOverlay() {
-      ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
-      drawActiveZone();
-    }
-
     function drawActiveZone() {
+      ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
       const { xMin, xMax, yMin, yMax } = config.activeZone;
       const x = xMin * ui.overlay.width;
       const y = yMin * ui.overlay.height;
@@ -572,7 +479,8 @@
     }
 
     function drawLandmarks(landmarks) {
-      clearOverlay();
+      drawActiveZone();
+      if (!landmarks || !landmarks.length) return;
       ctx.save();
       ctx.fillStyle = "rgba(61, 220, 151, 0.95)";
       for (const p of landmarks) {
@@ -584,150 +492,160 @@
       ctx.restore();
     }
 
-    function isPointInActiveZone(p) {
-      const z = config.activeZone;
-      return p.x >= z.xMin && p.x <= z.xMax && p.y >= z.yMin && p.y <= z.yMax;
-    }
-
-    function distance(a, b) {
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function countExtendedFingers(landmarks) {
-      const tips = [8, 12, 16, 20];
-      const pips = [6, 10, 14, 18];
-      let count = 0;
-      for (let i = 0; i < tips.length; i++) {
-        if (landmarks[tips[i]].y < landmarks[pips[i]].y) count++;
-      }
-      const thumbTip = landmarks[4];
-      const thumbIp = landmarks[3];
-      if (Math.abs(thumbTip.x - thumbIp.x) > 0.04) count++;
-      return count;
-    }
-
-    function getPalmCenter(landmarks) {
-      const ids = [0, 5, 9, 13, 17];
-      const sum = ids.reduce((acc, idx) => {
-        acc.x += landmarks[idx].x;
-        acc.y += landmarks[idx].y;
-        return acc;
-      }, { x: 0, y: 0 });
-      return { x: sum.x / ids.length, y: sum.y / ids.length };
-    }
-
-    function getPalmWidth(landmarks) {
-      return distance(landmarks[5], landmarks[17]);
-    }
-
-    function isOpenPalm(landmarks) {
-      const extended = countExtendedFingers(landmarks);
-      const palmWidth = getPalmWidth(landmarks);
-      ui.metricFingers.textContent = String(extended);
-      ui.metricPalmWidth.textContent = palmWidth.toFixed(3);
-      return extended >= config.openPalmMinExtendedFingers && palmWidth >= config.minPalmWidthRatio;
-    }
-
-    function canTrigger(now) {
-      return now - lastTriggerAt >= config.cooldownMs;
-    }
-
-    function markAction(text) {
-      setText(ui.lastAction, text, "value-ok");
-    }
-
-    function triggerGesture(direction) {
-      if (direction === "right") {
-        deck.next();
-        markAction(`następny slajd · ${new Date().toLocaleTimeString()}`);
-      } else {
-        deck.prev();
-        markAction(`poprzedni slajd · ${new Date().toLocaleTimeString()}`);
-      }
-      lastTriggerAt = performance.now();
-      xHistory = [];
-      readySince = null;
-      pulseFlash();
-    }
-
-    function updateDebugMetrics(deltaX = 0, deltaY = 0, direction = "brak") {
-      ui.metricDeltaX.textContent = deltaX.toFixed(3);
-      ui.metricDeltaY.textContent = deltaY.toFixed(3);
-      ui.metricDirection.textContent = direction;
-      ui.metricHistory.textContent = String(xHistory.length);
-    }
-
-    function updateGestureState(landmarks, now) {
-      const center = getPalmCenter(landmarks);
-      const openPalm = isOpenPalm(landmarks);
-      const inZone = isPointInActiveZone(center);
-
-      if (!openPalm || !inZone) {
-        readySince = null;
-        xHistory = [];
-        updateDebugMetrics();
-        setText(ui.handStatus, openPalm ? "poza strefą" : "dłoń niegotowa", "value-warn");
-        return;
-      }
-
-      setText(ui.handStatus, "gotowa", "value-ok");
-
-      if (readySince === null) readySince = now;
-      if (now - readySince < config.readyHoldMs) return;
-
-      xHistory.push({ t: now, x: center.x, y: center.y });
-      xHistory = xHistory.filter((p) => now - p.t <= config.historyWindowMs);
-
-      if (xHistory.length < 4 || !canTrigger(now)) {
-        updateDebugMetrics();
-        return;
-      }
-
-      const xs = xHistory.map((p) => p.x);
-      const ys = xHistory.map((p) => p.y);
-      const deltaX = Math.max(...xs) - Math.min(...xs);
-      const deltaY = Math.max(...ys) - Math.min(...ys);
-      const first = xHistory[0];
-      const last = xHistory[xHistory.length - 1];
-      const signedMove = last.x - first.x;
-      const direction = signedMove > 0.12 ? "right" : signedMove < -0.12 ? "left" : "brak";
-      updateDebugMetrics(deltaX, deltaY, direction);
-
-      const validCommon = deltaX >= config.minDeltaXRatio && deltaY <= config.maxDeltaYRatio;
-      if (!validCommon) return;
-
-      if (direction === "right") {
-        triggerGesture("right");
-      } else if (direction === "left") {
-        triggerGesture("left");
+    function setPaused(paused) {
+      detectionPaused = paused;
+      setText(ui.modeStatus, paused ? "pauza" : "aktywny", paused ? "value-warn" : "value-ok");
+      ui.toggleBtn.textContent = paused ? "Wznów detekcję" : "Wstrzymaj detekcję";
+      if (worker) {
+        worker.postMessage({ type: "setPaused", paused });
       }
     }
 
-    async function createLandmarker() {
-      setText(ui.modelStatus, "ładowanie...", "value-warn");
+    function loadConfig() {
       try {
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
-        );
-
-        handLandmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-          },
-          runningMode: "VIDEO",
-          numHands: 1,
-          minHandDetectionConfidence: 0.6,
-          minHandPresenceConfidence: 0.6,
-          minTrackingConfidence: 0.6
-        });
-        setText(ui.modelStatus, "gotowy", "value-ok");
-      } catch (err) {
-        setText(ui.modelStatus, "błąd", "value-err");
-        showError(`Nie udało się załadować modelu MediaPipe.\n\n${formatError(err)}`);
-        throw err;
+        const raw = localStorage.getItem(CONFIG_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        const parsed = JSON.parse(raw);
+        return {
+          ...JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
+          ...parsed,
+          activeZone: { ...DEFAULT_CONFIG.activeZone, ...(parsed.activeZone || {}) }
+        };
+      } catch {
+        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
       }
+    }
+
+    function saveConfig() {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    }
+
+    function updateConfigInputs() {
+      ui.frameSkip.value = config.frameSkip;
+      ui.cooldownMs.value = config.cooldownMs;
+      ui.historyWindowMs.value = config.historyWindowMs;
+      ui.minDeltaXRatio.value = config.minDeltaXRatio;
+      ui.maxDeltaYRatio.value = config.maxDeltaYRatio;
+      ui.readyHoldMs.value = config.readyHoldMs;
+      ui.openPalmMinExtendedFingers.value = config.openPalmMinExtendedFingers;
+      ui.minPalmWidthRatio.value = config.minPalmWidthRatio;
+      ui.zoneXMin.value = config.activeZone.xMin;
+      ui.zoneXMax.value = config.activeZone.xMax;
+      ui.zoneYMin.value = config.activeZone.yMin;
+      ui.zoneYMax.value = config.activeZone.yMax;
+    }
+
+    function readConfigInputs() {
+      config.frameSkip = Number(ui.frameSkip.value);
+      config.cooldownMs = Number(ui.cooldownMs.value);
+      config.historyWindowMs = Number(ui.historyWindowMs.value);
+      config.minDeltaXRatio = Number(ui.minDeltaXRatio.value);
+      config.maxDeltaYRatio = Number(ui.maxDeltaYRatio.value);
+      config.readyHoldMs = Number(ui.readyHoldMs.value);
+      config.openPalmMinExtendedFingers = Number(ui.openPalmMinExtendedFingers.value);
+      config.minPalmWidthRatio = Number(ui.minPalmWidthRatio.value);
+      config.activeZone = {
+        xMin: Number(ui.zoneXMin.value),
+        xMax: Number(ui.zoneXMax.value),
+        yMin: Number(ui.zoneYMin.value),
+        yMax: Number(ui.zoneYMax.value)
+      };
+    }
+
+    function syncConfigToWorker() {
+      if (!worker) return;
+      worker.postMessage({ type: "setConfig", config });
+      drawActiveZone();
+    }
+
+    function toggleDebug() {
+      debugVisible = !debugVisible;
+      ui.debugPanel.classList.toggle("visible", debugVisible);
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.();
+      } else {
+        document.exitFullscreen?.();
+      }
+    }
+
+    function bindSafeClick(element, handler) {
+      if (!element) return;
+      element.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handler(event);
+      });
+      element.addEventListener("pointerdown", (event) => event.stopPropagation());
+      element.addEventListener("mousedown", (event) => event.stopPropagation());
+      element.addEventListener("touchstart", (event) => event.stopPropagation(), { passive: true });
+    }
+
+    function explainMediaError(error) {
+      const name = error?.name || "Error";
+      const message = error?.message || "Nieznany błąd.";
+      if (name === "NotAllowedError") return "Brak zgody na użycie kamery. Zezwól na dostęp do kamery dla tej strony i spróbuj ponownie.";
+      if (name === "NotFoundError") return "Nie znaleziono kamery w systemie.";
+      if (name === "NotReadableError") return "Kamera jest zajęta przez inną aplikację albo system blokuje jej odczyt.";
+      if (name === "OverconstrainedError") return "Nie udało się dobrać parametrów kamery.";
+      if (name === "SecurityError") return "Przeglądarka zablokowała dostęp do kamery z powodów bezpieczeństwa.";
+      return `${name}: ${message}`;
+    }
+
+    function createWorker() {
+      if (worker) return;
+      worker = new Worker("./gesture-worker.js", { type: "module" });
+
+      worker.addEventListener("message", (event) => {
+        const msg = event.data || {};
+        if (msg.type === "ready") {
+          workerReady = true;
+          setText(ui.workerStatus, "gotowy", "value-ok");
+          syncConfigToWorker();
+          if (offscreen) {
+            worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
+            offscreen = null;
+          }
+        } else if (msg.type === "status") {
+          if (msg.workerStatus) setText(ui.workerStatus, msg.workerStatus.text, msg.workerStatus.className);
+          if (msg.handStatus) setText(ui.handStatus, msg.handStatus.text, msg.handStatus.className);
+          if (msg.metrics) {
+            ui.metricDeltaX.textContent = Number(msg.metrics.deltaX || 0).toFixed(3);
+            ui.metricDeltaY.textContent = Number(msg.metrics.deltaY || 0).toFixed(3);
+            ui.metricDirection.textContent = msg.metrics.direction || "brak";
+            ui.metricPresence.textContent = Number(msg.metrics.presence || 0).toFixed(3);
+          }
+          if (msg.landmarks) drawLandmarks(msg.landmarks);
+          else drawActiveZone();
+        } else if (msg.type === "gesture") {
+          if (msg.action === "next") {
+            deck.next();
+            markAction(`następny slajd · ${new Date().toLocaleTimeString()}`);
+            pulseFlash();
+          } else if (msg.action === "prev") {
+            deck.prev();
+            markAction(`poprzedni slajd · ${new Date().toLocaleTimeString()}`);
+            pulseFlash();
+          }
+        } else if (msg.type === "processed") {
+          workerBusy = false;
+          if (msg.landmarks) drawLandmarks(msg.landmarks);
+          else drawActiveZone();
+        } else if (msg.type === "error") {
+          setText(ui.workerStatus, "błąd", "value-err");
+          markAction(`błąd workera: ${msg.message}`, "value-err");
+          showBootError(`Worker: ${msg.message}`);
+          workerBusy = false;
+        }
+      });
+
+      worker.addEventListener("error", (error) => {
+        setText(ui.workerStatus, "błąd", "value-err");
+        markAction(`worker error: ${error.message}`, "value-err");
+        showBootError(`Worker script error: ${error.message}`);
+      });
     }
 
     async function startCamera() {
@@ -735,20 +653,10 @@
         throw new Error("Przeglądarka nie obsługuje getUserMedia().");
       }
 
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter((d) => d.kind === "videoinput");
-        if (videoInputs.length === 0) {
-          throw new Error("Nie wykryto żadnej kamery w systemie.");
-        }
-      } catch (err) {
-        console.warn("Nie udało się pobrać listy urządzeń", err);
-      }
-
       cameraStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 320 },
-          height: { ideal: 240 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: "user"
         },
         audio: false
@@ -756,11 +664,48 @@
 
       ui.video.srcObject = cameraStream;
       await ui.video.play();
-      ui.cameraWrap.classList.add("active");
-      setOverlaySize();
-      clearOverlay();
+      ui.cameraPlaceholder.style.display = "none";
+      cameraReady = true;
       setText(ui.cameraStatus, "aktywna", "value-ok");
+      setOverlaySize();
       ui.toggleBtn.disabled = false;
+    }
+
+    async function startSystem() {
+      clearBootError();
+      ui.startBtn.disabled = true;
+      ui.bootStartBtn.disabled = true;
+      try {
+        createWorker();
+        if (!cameraStream) await startCamera();
+
+        captureCanvas = document.createElement("canvas");
+        captureCanvas.width = 320;
+        captureCanvas.height = 240;
+        captureCtx = captureCanvas.getContext("2d", { willReadFrequently: false });
+
+        if (!offscreen && "transferControlToOffscreen" in ui.overlay) {
+          offscreen = ui.overlay.transferControlToOffscreen();
+        }
+
+        if (workerReady && offscreen) {
+          worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
+          offscreen = null;
+        }
+
+        setPaused(false);
+        ui.bootOverlay.style.display = "none";
+        markAction("system uruchomiony");
+        stopLoop();
+        renderLoop();
+      } catch (error) {
+        const message = explainMediaError(error);
+        setText(ui.cameraStatus, "błąd", "value-err");
+        markAction(`błąd uruchomienia: ${message}`, "value-err");
+        showBootError(message);
+        ui.startBtn.disabled = false;
+        ui.bootStartBtn.disabled = false;
+      }
     }
 
     function stopLoop() {
@@ -770,136 +715,29 @@
 
     function renderLoop() {
       rafId = requestAnimationFrame(renderLoop);
-
-      if (!handLandmarker || detectionPaused) {
-        clearOverlay();
-        return;
-      }
-
+      if (detectionPaused || !cameraReady || !worker || !workerReady || workerBusy) return;
       if (ui.video.readyState < 2) return;
-      if (ui.video.currentTime === lastVideoTime) return;
 
       frameCounter++;
-      if (frameCounter % config.frameSkip !== 0) {
-        lastVideoTime = ui.video.currentTime;
-        return;
-      }
+      if (frameCounter % Math.max(1, config.frameSkip) !== 0) return;
 
-      lastVideoTime = ui.video.currentTime;
-      const now = performance.now();
-      const result = handLandmarker.detectForVideo(ui.video, now);
+      captureCtx.drawImage(ui.video, 0, 0, captureCanvas.width, captureCanvas.height);
+      const bitmapPromise = createImageBitmap(captureCanvas);
 
-      if (result.landmarks && result.landmarks.length > 0) {
-        const landmarks = result.landmarks[0];
-        drawLandmarks(landmarks);
-        updateGestureState(landmarks, now);
-      } else {
-        clearOverlay();
-        readySince = null;
-        xHistory = [];
-        updateDebugMetrics();
-        setText(ui.handStatus, "brak", "value-muted");
-      }
-    }
-
-    function setPaused(paused) {
-      detectionPaused = paused;
-      setText(ui.modeStatus, paused ? "pauza" : "aktywny", paused ? "value-warn" : "value-ok");
-      ui.toggleBtn.textContent = paused ? "Wznów detekcję" : "Wstrzymaj detekcję";
-    }
-
-    function formatError(err) {
-      const name = err?.name ? `${err.name}: ` : "";
-      const msg = err?.message || String(err);
-      return `${name}${msg}`;
-    }
-
-    async function startSystem() {
-      if (startedOnce) {
-        if (!cameraStream) {
-          await startCamera();
-        }
-        setPaused(false);
-        stopLoop();
-        renderLoop();
-        ui.bootOverlay.style.display = "none";
-        return;
-      }
-
-      clearError();
-      ui.startBtn.disabled = true;
-      ui.bootStartBtn.disabled = true;
-
-      try {
-        if (!handLandmarker) await createLandmarker();
-        if (!cameraStream) await startCamera();
-        setPaused(false);
-        stopLoop();
-        renderLoop();
-        startedOnce = true;
-        ui.bootOverlay.style.display = "none";
-      } catch (err) {
-        console.error(err);
-        setText(ui.cameraStatus, "błąd", "value-err");
-        if (!handLandmarker) setText(ui.modelStatus, "błąd", "value-err");
-        const message = explainStartupError(err);
-        showError(message);
-        markAction(`błąd uruchomienia · ${new Date().toLocaleTimeString()}`);
-        ui.startBtn.disabled = false;
-        ui.bootStartBtn.disabled = false;
-      }
-    }
-
-    function explainStartupError(err) {
-      const prefix = `Nie udało się uruchomić kamery lub modelu.\n\n${formatError(err)}\n\n`;
-      switch (err?.name) {
-        case "NotAllowedError":
-        case "PermissionDeniedError":
-          return prefix + "Przeglądarka nie ma zgody na kamerę. Kliknij ikonę kłódki przy adresie strony i włącz uprawnienie dla kamery, a następnie odśwież stronę.";
-        case "NotFoundError":
-        case "DevicesNotFoundError":
-          return prefix + "System lub przeglądarka nie widzi kamery. Sprawdź, czy kamera jest podłączona i czy nie jest wyłączona sprzętowo.";
-        case "NotReadableError":
-        case "TrackStartError":
-          return prefix + "Kamera jest zajęta przez inną aplikację albo sterownik nie pozwala jej otworzyć. Zamknij Teams, Zoom, aparat systemowy lub inne programy używające kamery.";
-        case "OverconstrainedError":
-        case "ConstraintNotSatisfiedError":
-          return prefix + "Żądane parametry obrazu nie są dostępne dla tej kamery. Spróbuj ponownie po odświeżeniu strony.";
-        default:
-          return prefix + "Otwórz konsolę przeglądarki klawiszem F12, aby zobaczyć szczegóły techniczne.";
-      }
-    }
-
-
-    function bindSafeClick(element, handler) {
-      if (!element) return;
-      element.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        handler(event);
+      workerBusy = true;
+      bitmapPromise.then((bitmap) => {
+        worker.postMessage({
+          type: "processFrame",
+          frameId: ++frameSeq,
+          timestamp: performance.now(),
+          bitmap,
+          width: captureCanvas.width,
+          height: captureCanvas.height
+        }, [bitmap]);
+      }).catch((error) => {
+        workerBusy = false;
+        markAction(`błąd obrazu: ${error.message}`, "value-err");
       });
-      element.addEventListener("pointerdown", (event) => {
-        event.stopPropagation();
-      });
-      element.addEventListener("mousedown", (event) => {
-        event.stopPropagation();
-      });
-      element.addEventListener("touchstart", (event) => {
-        event.stopPropagation();
-      }, { passive: true });
-    }
-
-    function toggleDebug() {
-      debugVisible = !debugVisible;
-      ui.debugPanel.classList.toggle("visible", debugVisible);
-    }
-
-    async function toggleFullscreen() {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
     }
 
     bindSafeClick(ui.startBtn, startSystem);
@@ -912,42 +750,60 @@
       debugVisible = true;
       toggleDebug();
     });
-
     bindSafeClick(ui.toggleBtn, () => {
       setPaused(!detectionPaused);
-      clearOverlay();
+      drawActiveZone();
     });
-
     bindSafeClick(ui.prevBtn, () => deck.prev());
     bindSafeClick(ui.nextBtn, () => deck.next());
-
-    window.addEventListener("resize", () => {
-      setOverlaySize();
-      clearOverlay();
+    bindSafeClick(ui.testPrevBtn, () => {
+      deck.prev();
+      markAction("test: poprzedni slajd");
+    });
+    bindSafeClick(ui.testNextBtn, () => {
+      deck.next();
+      markAction("test: następny slajd");
+    });
+    bindSafeClick(ui.saveConfigBtn, () => {
+      readConfigInputs();
+      saveConfig();
+      syncConfigToWorker();
+      markAction("ustawienia zapisane");
+    });
+    bindSafeClick(ui.resetConfigBtn, () => {
+      config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      updateConfigInputs();
+      saveConfig();
+      syncConfigToWorker();
+      markAction("ustawienia zresetowane");
     });
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        setPaused(true);
-      }
-    });
-
-    document.addEventListener("keydown", async (event) => {
+    document.addEventListener("keydown", (event) => {
       if (event.key === "d" || event.key === "D") {
+        event.preventDefault();
         toggleDebug();
       } else if (event.key === "f" || event.key === "F") {
         event.preventDefault();
-        try {
-          await toggleFullscreen();
-        } catch (err) {
-          showError(`Nie udało się przełączyć pełnego ekranu.\n\n${formatError(err)}`);
-        }
+        toggleFullscreen();
       }
     });
 
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) setPaused(true);
+    });
+
+    window.addEventListener("resize", () => {
+      setOverlaySize();
+      drawActiveZone();
+    });
+
+    updateConfigInputs();
     setPaused(true);
-    setOverlaySize();
-    clearOverlay();
+    setText(ui.cameraStatus, "nieuruchomiona", "value-muted");
+    setText(ui.workerStatus, "ładowanie...", "value-warn");
+    setText(ui.handStatus, "brak", "value-muted");
+    drawActiveZone();
+    createWorker();
   </script>
 </body>
 </html>

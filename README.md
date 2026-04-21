@@ -1,26 +1,27 @@
-# Reveal.js + MediaPipe gesture control
+# Reveal.js + MediaPipe gesture control — Web Worker
 
-Projekt prezentacji Reveal.js sterowanej gestami dłoni z użyciem MediaPipe Hand Landmarker.
-Wersja w tym katalogu jest przygotowana do publikacji na GitHub Pages.
+Wersja projektu, w której detekcja dłoni MediaPipe działa w `gesture-worker.js`, a główny wątek odpowiada za Reveal.js, UI i sterowanie prezentacją.
 
-## Co zawiera
-- `index.html` — aplikacja Reveal.js + sterowanie gestami
+## Co zmienia Web Worker
+- odciąża główny wątek interfejsu
+- zmniejsza ryzyko przycięć animacji Reveal.js
+- pozwala utrzymać płynniejsze przejścia podczas pracy kamery i detekcji
+
+## Pliki
+- `index.html` — aplikacja Reveal.js
 - `slides.md` — prezentacja ładowana z Markdown
+- `gesture-worker.js` — worker z MediaPipe Hand Landmarker
 - `favicon.svg` — favicon
-- `.nojekyll` — wyłącza Jekyll na GitHub Pages
+- `.nojekyll` — zgodność z GitHub Pages
 - `.github/workflows/deploy-pages.yml` — automatyczne wdrażanie na GitHub Pages
 
-## Jak opublikować na GitHub Pages
-1. Utwórz repozytorium na GitHub.
-2. Wgraj całą zawartość tego katalogu do gałęzi `main`.
-3. W ustawieniach repozytorium otwórz **Pages** i ustaw źródło na **GitHub Actions**.
-4. Wypchnij zmiany. Workflow opublikuje stronę automatycznie.
-5. Po wdrożeniu otwórz adres w stylu:
-   `https://NAZWA_UZYTKOWNIKA.github.io/NAZWA_REPOZYTORIUM/`
-
-## Kamera i uprawnienia
-GitHub Pages działa po HTTPS, więc `getUserMedia()` może działać poprawnie po przyznaniu uprawnień do kamery.
-Przy pierwszym uruchomieniu kliknij przycisk startu i zaakceptuj dostęp do kamery w przeglądarce.
+## Jak działa
+1. Główny wątek pobiera obraz z kamery.
+2. Każda wybrana klatka jest zamieniana na `ImageBitmap`.
+3. `ImageBitmap` trafia do workera.
+4. Worker wykonuje detekcję landmarków dłoni i logikę gestów.
+5. Worker odsyła wynik i akcję `next` / `prev`.
+6. Główny wątek steruje Reveal.js.
 
 ## Sterowanie
 - machnięcie w prawo — następny slajd
@@ -28,11 +29,5 @@ Przy pierwszym uruchomieniu kliknij przycisk startu i zaakceptuj dostęp do kame
 - `d` — panel debug/config
 - `f` — fullscreen
 
-## Uwagi
-- Strona jest statyczna i nie wymaga backendu.
-- Plik `slides.md` możesz dowolnie edytować bez zmian w kodzie aplikacji.
-- Lokalne pliki `.bat` i `.sh` nie są potrzebne na GitHub Pages, ale mogą być używane lokalnie.
-
-
-## Animacje i przejścia
-Rozbudowano `slides.md` o per-slajdowe `data-transition`, gradientowe tła oraz fragmenty Reveal.js (`fragment`, `fade-*`, `highlight-*`, `current-visible`, `r-stack`, `r-hstack`).
+## GitHub Pages
+Projekt jest przygotowany do publikacji jako statyczna strona na GitHub Pages.
