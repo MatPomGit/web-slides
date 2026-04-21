@@ -257,13 +257,29 @@
       gap: 8px;
       margin-top: 12px;
     }
+
+    #hud, #debugPanel, #bootOverlay, #bootCard, #controls, #bootActions {
+      pointer-events: auto;
+    }
+
+    #hud button, #debugPanel button, #bootOverlay button {
+      pointer-events: auto;
+      touch-action: manipulation;
+      position: relative;
+      z-index: 2;
+    }
+
+    #overlay, #cameraPlaceholder, #flash {
+      pointer-events: none;
+    }
+
   </style>
 </head>
 <body>
   <div class="reveal">
     <div class="slides">
       <section
-        data-markdown="slides.md"
+        data-markdown="./slides.md"
         data-separator="^\\r?\\n---\\r?\\n$"
         data-separator-vertical="^\\r?\\n--\\r?\\n$"
         data-separator-notes="^Note:"
@@ -311,7 +327,7 @@
     <div id="help">
       Gesty: wyraźny ruch otwartej dłoni w prawo lub w lewo w obrębie obszaru kamery.<br />
       Skróty: <strong>d</strong> debug, <strong>f</strong> fullscreen.<br />
-      <span class="small">Wydajność: kamera 320×240, analiza co drugą klatkę, 1 dłoń.</span>
+      <span class="small">Wydajność: kamera 320×240, analiza co drugą klatkę, 1 dłoń. GitHub Pages działa przez HTTPS, więc kamera może być uruchamiana bez lokalnego serwera.</span>
     </div>
   </aside>
 
@@ -854,6 +870,25 @@
       }
     }
 
+
+    function bindSafeClick(element, handler) {
+      if (!element) return;
+      element.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handler(event);
+      });
+      element.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+      element.addEventListener("mousedown", (event) => {
+        event.stopPropagation();
+      });
+      element.addEventListener("touchstart", (event) => {
+        event.stopPropagation();
+      }, { passive: true });
+    }
+
     function toggleDebug() {
       debugVisible = !debugVisible;
       ui.debugPanel.classList.toggle("visible", debugVisible);
@@ -867,24 +902,24 @@
       }
     }
 
-    ui.startBtn.addEventListener("click", startSystem);
-    ui.bootStartBtn.addEventListener("click", startSystem);
-    ui.bootDismissBtn.addEventListener("click", () => {
+    bindSafeClick(ui.startBtn, startSystem);
+    bindSafeClick(ui.bootStartBtn, startSystem);
+    bindSafeClick(ui.bootDismissBtn, () => {
       ui.bootOverlay.style.display = "none";
       markAction("uruchomiono bez kamery");
     });
-    ui.closeDebugBtn.addEventListener("click", () => {
+    bindSafeClick(ui.closeDebugBtn, () => {
       debugVisible = true;
       toggleDebug();
     });
 
-    ui.toggleBtn.addEventListener("click", () => {
+    bindSafeClick(ui.toggleBtn, () => {
       setPaused(!detectionPaused);
       clearOverlay();
     });
 
-    ui.prevBtn.addEventListener("click", () => deck.prev());
-    ui.nextBtn.addEventListener("click", () => deck.next());
+    bindSafeClick(ui.prevBtn, () => deck.prev());
+    bindSafeClick(ui.nextBtn, () => deck.next());
 
     window.addEventListener("resize", () => {
       setOverlaySize();

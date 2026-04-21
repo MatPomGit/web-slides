@@ -1,95 +1,38 @@
-# Reveal.js + MediaPipe Hand Gesture
+# Reveal.js + MediaPipe gesture control
 
-To jest czysto webowy prototyp prezentacji Reveal.js sterowanej gestem dłoni.
+Projekt prezentacji Reveal.js sterowanej gestami dłoni z użyciem MediaPipe Hand Landmarker.
+Wersja w tym katalogu jest przygotowana do publikacji na GitHub Pages.
 
-## Co robi
+## Co zawiera
+- `index.html` — aplikacja Reveal.js + sterowanie gestami
+- `slides.md` — prezentacja ładowana z Markdown
+- `favicon.svg` — favicon
+- `.nojekyll` — wyłącza Jekyll na GitHub Pages
+- `.github/workflows/deploy-pages.yml` — automatyczne wdrażanie na GitHub Pages
 
-- ładuje slajdy z pliku `slides.md`
-- uruchamia kamerę w przeglądarce po kliknięciu przycisku startowego
-- wykrywa otwartą dłoń przez MediaPipe Hand Landmarker
-- po ruchu dłoni w prawo przechodzi do następnego slajdu
-- po ruchu dłoni w lewo przechodzi do poprzedniego slajdu
-- klawiszem `d` otwiera i zamyka panel debug/config
-- klawiszem `f` przełącza fullscreen
-- pokazuje czytelny komunikat o błędzie przy problemach z kamerą lub modelem
+## Jak opublikować na GitHub Pages
+1. Utwórz repozytorium na GitHub.
+2. Wgraj całą zawartość tego katalogu do gałęzi `main`.
+3. W ustawieniach repozytorium otwórz **Pages** i ustaw źródło na **GitHub Actions**.
+4. Wypchnij zmiany. Workflow opublikuje stronę automatycznie.
+5. Po wdrożeniu otwórz adres w stylu:
+   `https://NAZWA_UZYTKOWNIKA.github.io/NAZWA_REPOZYTORIUM/`
 
-## Jak uruchomić
-
-Reveal.js ładowany z zewnętrznego pliku Markdown wymaga uruchomienia przez lokalny serwer HTTP.
-Nie otwieraj `index.html` przez `file://`.
-
-Najwygodniej uruchomić jeden z dostarczonych skryptów:
-
-### Windows
-
-```bat
-start-presentation.bat
-```
-
-### Linux / macOS
-
-```sh
-./start-presentation.sh
-```
-
-Możesz też uruchomić serwer ręcznie:
-
-```bash
-python -m http.server 8000
-```
-
-Następnie otwórz w przeglądarce:
-
-```text
-http://localhost:8000/
-```
+## Kamera i uprawnienia
+GitHub Pages działa po HTTPS, więc `getUserMedia()` może działać poprawnie po przyznaniu uprawnień do kamery.
+Przy pierwszym uruchomieniu kliknij przycisk startu i zaakceptuj dostęp do kamery w przeglądarce.
 
 ## Sterowanie
+- machnięcie w prawo — następny slajd
+- machnięcie w lewo — poprzedni slajd
+- `d` — panel debug/config
+- `f` — fullscreen
 
-- `Uruchom kamerę` — ładuje model MediaPipe i prosi o dostęp do kamery
-- `Wznów/Wstrzymaj detekcję` — pauza analizy
-- `Następny` / `Poprzedni` — ręczne przełączanie slajdów
-- `d` — pokazuje lub ukrywa panel debug/config
-- `f` — włącza lub wyłącza pełny ekran
+## Uwagi
+- Strona jest statyczna i nie wymaga backendu.
+- Plik `slides.md` możesz dowolnie edytować bez zmian w kodzie aplikacji.
+- Lokalne pliki `.bat` i `.sh` nie są potrzebne na GitHub Pages, ale mogą być używane lokalnie.
 
-## Debug i konfiguracja
 
-Panel debug pokazuje aktualne metryki detekcji:
-
-- `deltaX`
-- `deltaY`
-- kierunek ruchu
-- liczbę rozpoznanych wyprostowanych palców
-- szerokość dłoni
-- długość historii pomiarów
-
-W panelu można stroić najważniejsze progi bez edycji kodu. Ustawienia zapisują się w `localStorage` przeglądarki.
-
-## Typowe problemy
-
-### Nie pojawia się obraz z kamery
-
-- kliknij przycisk uruchomienia kamery na ekranie startowym
-- sprawdź, czy przeglądarka dostała zgodę na kamerę
-- zamknij inne aplikacje używające kamery, np. Teams, Zoom, aparat systemowy
-- wciśnij `d`, aby zobaczyć dodatkowe metryki i komunikat błędu
-- otwórz konsolę przeglądarki `F12`, jeśli problem nadal występuje
-
-## Parametry wydajności
-
-Najważniejsze ustawienia są w obiekcie `config` w pliku `index.html`:
-
-- `frameSkip`
-- `cooldownMs`
-- `historyWindowMs`
-- `minDeltaXRatio`
-- `maxDeltaYRatio`
-- `readyHoldMs`
-- `openPalmMinExtendedFingers`
-- `minPalmWidthRatio`
-
-## Ograniczenia
-
-- To steruje prezentacją webową Reveal.js na tej samej stronie.
-- Nie emuluje globalnego klawisza spacji dla innych aplikacji systemowych.
-- MediaPipe działa na głównym wątku; dla jeszcze niższego wpływu na UI można przenieść analizę do Web Workera.
+## Animacje i przejścia
+Rozbudowano `slides.md` o per-slajdowe `data-transition`, gradientowe tła oraz fragmenty Reveal.js (`fragment`, `fade-*`, `highlight-*`, `current-visible`, `r-stack`, `r-hstack`).
