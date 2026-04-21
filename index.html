@@ -531,8 +531,102 @@
       }
     }
 
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function parseNumericBounds(inputEl, fallbackValue) {
+      // Odczytujemy granice bezpośrednio z inputów, aby walidacja była spójna z UI.
+      const minAttr = Number(inputEl.min);
+      const maxAttr = Number(inputEl.max);
+      const min = Number.isFinite(minAttr) ? minAttr : fallbackValue;
+      const max = Number.isFinite(maxAttr) ? maxAttr : fallbackValue;
+      return { min, max: Math.max(min, max) };
+    }
+
+    function sanitizeNumericField(inputEl, defaultValue) {
+      // Każde pole liczbowe: Number(...), fallback dla NaN i clamp do bezpiecznego zakresu.
+      const parsedValue = Number(inputEl.value);
+      const safeValue = Number.isFinite(parsedValue) ? parsedValue : defaultValue;
+      const bounds = parseNumericBounds(inputEl, defaultValue);
+      return clamp(safeValue, bounds.min, bounds.max);
+    }
+
+    function sanitizeActiveZone(candidateZone) {
+      // Wymuszamy poprawny porządek i zakres strefy aktywnej w normalizacji [0, 1].
+      const defaultZone = DEFAULT_CONFIG.activeZone;
+      let { xMin, xMax, yMin, yMax } = candidateZone;
+      let corrected = false;
+
+      xMin = clamp(xMin, 0, 1);
+      xMax = clamp(xMax, 0, 1);
+      yMin = clamp(yMin, 0, 1);
+      yMax = clamp(yMax, 0, 1);
+
+      if (xMin >= xMax) {
+        corrected = true;
+        if (xMin > xMax) {
+          [xMin, xMax] = [xMax, xMin];
+        }
+        if (xMin === xMax) {
+          xMin = defaultZone.xMin;
+          xMax = defaultZone.xMax;
+        }
+      }
+
+      if (yMin >= yMax) {
+        corrected = true;
+        if (yMin > yMax) {
+          [yMin, yMax] = [yMax, yMin];
+        }
+        if (yMin === yMax) {
+          yMin = defaultZone.yMin;
+          yMax = defaultZone.yMax;
+        }
+      }
+
+      return {
+        zone: { xMin, xMax, yMin, yMax },
+        corrected
+      };
+    }
+
+    function sanitizeConfig() {
+      // Budujemy wyłącznie poprawny obiekt konfiguracji możliwy do zapisania i wysłania do workera.
+      const sanitized = {
+        frameSkip: sanitizeNumericField(ui.frameSkip, DEFAULT_CONFIG.frameSkip),
+        cooldownMs: sanitizeNumericField(ui.cooldownMs, DEFAULT_CONFIG.cooldownMs),
+        historyWindowMs: sanitizeNumericField(ui.historyWindowMs, DEFAULT_CONFIG.historyWindowMs),
+        minDeltaXRatio: sanitizeNumericField(ui.minDeltaXRatio, DEFAULT_CONFIG.minDeltaXRatio),
+        maxDeltaYRatio: sanitizeNumericField(ui.maxDeltaYRatio, DEFAULT_CONFIG.maxDeltaYRatio),
+        readyHoldMs: sanitizeNumericField(ui.readyHoldMs, DEFAULT_CONFIG.readyHoldMs),
+        openPalmMinExtendedFingers: sanitizeNumericField(ui.openPalmMinExtendedFingers, DEFAULT_CONFIG.openPalmMinExtendedFingers),
+        minPalmWidthRatio: sanitizeNumericField(ui.minPalmWidthRatio, DEFAULT_CONFIG.minPalmWidthRatio),
+        activeZone: { ...DEFAULT_CONFIG.activeZone }
+      };
+
+      const zoneCandidate = {
+        xMin: sanitizeNumericField(ui.zoneXMin, DEFAULT_CONFIG.activeZone.xMin),
+        xMax: sanitizeNumericField(ui.zoneXMax, DEFAULT_CONFIG.activeZone.xMax),
+        yMin: sanitizeNumericField(ui.zoneYMin, DEFAULT_CONFIG.activeZone.yMin),
+        yMax: sanitizeNumericField(ui.zoneYMax, DEFAULT_CONFIG.activeZone.yMax)
+      };
+
+      const zoneResult = sanitizeActiveZone(zoneCandidate);
+      sanitized.activeZone = zoneResult.zone;
+      return {
+        config: sanitized,
+        correctedZone: zoneResult.corrected
+      };
+    }
+
     function saveConfig() {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+      const { config: sanitizedConfig, correctedZone } = sanitizeConfig();
+      config = sanitizedConfig;
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(sanitizedConfig));
+      if (correctedZone) {
+        markAction("skorygowano nieprawidłowe ustawienia strefy", "value-warn");
+      }
     }
 
     function updateConfigInputs() {
@@ -551,20 +645,12 @@
     }
 
     function readConfigInputs() {
-      config.frameSkip = Number(ui.frameSkip.value);
-      config.cooldownMs = Number(ui.cooldownMs.value);
-      config.historyWindowMs = Number(ui.historyWindowMs.value);
-      config.minDeltaXRatio = Number(ui.minDeltaXRatio.value);
-      config.maxDeltaYRatio = Number(ui.maxDeltaYRatio.value);
-      config.readyHoldMs = Number(ui.readyHoldMs.value);
-      config.openPalmMinExtendedFingers = Number(ui.openPalmMinExtendedFingers.value);
-      config.minPalmWidthRatio = Number(ui.minPalmWidthRatio.value);
-      config.activeZone = {
-        xMin: Number(ui.zoneXMin.value),
-        xMax: Number(ui.zoneXMax.value),
-        yMin: Number(ui.zoneYMin.value),
-        yMax: Number(ui.zoneYMax.value)
-      };
+      const { config: sanitizedConfig, correctedZone } = sanitizeConfig();
+      config = sanitizedConfig;
+      updateConfigInputs();
+      if (correctedZone) {
+        markAction("skorygowano nieprawidłowe ustawienia strefy", "value-warn");
+      }
     }
 
     function syncConfigToWorker() {
