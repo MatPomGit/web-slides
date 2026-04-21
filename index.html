@@ -138,6 +138,10 @@
     button:hover { background: rgba(255,255,255,0.14); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
 
+    #hud.camera-hidden #cameraWrap {
+      display: none;
+    }
+
     #help {
       margin-top: 10px;
       font-size: 12px;
@@ -285,11 +289,12 @@
       <button id="toggleBtn" disabled>Wznów detekcję</button>
       <button id="prevBtn">◀ Poprzedni</button>
       <button id="nextBtn">Następny ▶</button>
+      <button id="previewToggleBtn">Ukryj podgląd</button>
     </div>
 
     <div id="help">
       Gest: wyraźne machnięcie otwartą dłonią w prawo = następny slajd, w lewo = poprzedni slajd.<br />
-      Klawisze: <strong>d</strong> = debug/config, <strong>f</strong> = fullscreen.<br />
+      Klawisze: <strong>←/→</strong> = slajdy, <strong>d</strong> = debug/config, <strong>f</strong> = fullscreen, <strong>h</strong> = podgląd.<br />
       <span class="small">Wersja worker: detekcja działa poza głównym wątkiem UI.</span>
     </div>
   </aside>
@@ -344,6 +349,7 @@
 
   <script type="module">
     const ui = {
+      hud: document.getElementById("hud"),
       cameraStatus: document.getElementById("cameraStatus"),
       workerStatus: document.getElementById("workerStatus"),
       handStatus: document.getElementById("handStatus"),
@@ -353,6 +359,7 @@
       toggleBtn: document.getElementById("toggleBtn"),
       prevBtn: document.getElementById("prevBtn"),
       nextBtn: document.getElementById("nextBtn"),
+      previewToggleBtn: document.getElementById("previewToggleBtn"),
       video: document.getElementById("camera"),
       overlay: document.getElementById("overlay"),
       flash: document.getElementById("flash"),
@@ -425,6 +432,7 @@
     let frameSeq = 0;
     let workerBusy = false;
     let isOffscreenMode = false;
+    let previewVisible = true;
 
     function initializeRenderingMode() {
       // Preferujemy tryb OffscreenCanvas, aby odciążyć główny wątek UI.
@@ -657,6 +665,49 @@
       if (!worker) return;
       worker.postMessage({ type: "setConfig", config });
       drawActiveZone();
+    }
+
+    function setPreviewVisibility(visible) {
+      // Spójnie przełączamy widoczność okna podglądu i etykietę przycisku w panelu HUD.
+      previewVisible = visible;
+      ui.hud.classList.toggle("camera-hidden", !visible);
+      ui.previewToggleBtn.textContent = visible ? "Ukryj podgląd" : "Pokaż podgląd";
+    }
+
+    function togglePreviewVisibility() {
+      // Udostępniamy szybkie przełączanie podglądu kamerki bez wyłączania detekcji.
+      setPreviewVisibility(!previewVisible);
+      markAction(previewVisible ? "podgląd kamery widoczny" : "podgląd kamery ukryty", "value-muted");
+    }
+
+    function isTypingContext(eventTarget) {
+      // Nie przechwytujemy skrótów klawiaturowych podczas wpisywania wartości w formularzach.
+      const activeElement = eventTarget instanceof Element ? eventTarget : document.activeElement;
+      if (!(activeElement instanceof HTMLElement)) return false;
+      return activeElement.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement.tagName);
+    }
+
+    function handleGlobalKeyboard(event) {
+      // Obsługujemy skróty globalnie, żeby działały niezależnie od aktualnego fokusowania Reveal.js.
+      if (isTypingContext(event.target)) return;
+      const key = event.key.toLowerCase();
+
+      if (key === "d") {
+        event.preventDefault();
+        toggleDebug();
+      } else if (key === "f") {
+        event.preventDefault();
+        toggleFullscreen();
+      } else if (key === "h") {
+        event.preventDefault();
+        togglePreviewVisibility();
+      } else if (["arrowright", "pagedown", " "].includes(key)) {
+        event.preventDefault();
+        deck.next();
+      } else if (["arrowleft", "pageup"].includes(key)) {
+        event.preventDefault();
+        deck.prev();
+      }
     }
 
     function toggleDebug() {
@@ -902,6 +953,7 @@
     });
     bindSafeClick(ui.prevBtn, () => deck.prev());
     bindSafeClick(ui.nextBtn, () => deck.next());
+    bindSafeClick(ui.previewToggleBtn, togglePreviewVisibility);
     bindSafeClick(ui.testPrevBtn, () => {
       deck.prev();
       markAction("test: poprzedni slajd");
@@ -924,15 +976,7 @@
       markAction("ustawienia zresetowane");
     });
 
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "d" || event.key === "D") {
-        event.preventDefault();
-        toggleDebug();
-      } else if (event.key === "f" || event.key === "F") {
-        event.preventDefault();
-        toggleFullscreen();
-      }
-    });
+    window.addEventListener("keydown", handleGlobalKeyboard, { capture: true });
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) setPaused(true);
@@ -951,6 +995,7 @@
     setText(ui.workerStatus, "ładowanie...", "value-warn");
     setText(ui.handStatus, "brak", "value-muted");
     drawActiveZone();
+    setPreviewVisibility(true);
     createWorker();
   </script>
 </body>
