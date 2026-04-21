@@ -820,6 +820,45 @@
       rafId = null;
     }
 
+    function shutdownSystem() {
+      // Zatrzymujemy pętlę renderowania i przywracamy flagi sterujące do stanu początkowego.
+      stopLoop();
+      workerBusy = false;
+      cameraReady = false;
+      detectionPaused = true;
+      frameCounter = 0;
+      frameSeq = 0;
+
+      // Zwalniamy wszystkie ścieżki kamery, aby urządzenie nie pozostawało zajęte po zamknięciu.
+      cameraStream?.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+      ui.video.srcObject = null;
+      ui.cameraPlaceholder.style.display = "grid";
+
+      // Kończymy worker i czyścimy stan inicjalizacji, by możliwy był bezpieczny restart systemu.
+      worker?.terminate();
+      worker = null;
+      workerReady = false;
+
+      // Czyścimy zasoby pomocnicze używane do przechwytywania klatek.
+      captureCanvas = null;
+      captureCtx = null;
+      offscreen = null;
+
+      // Aktualizujemy statusy interfejsu, aby użytkownik widział jednoznacznie stan zatrzymania.
+      setText(ui.cameraStatus, "zatrzymana", "value-muted");
+      setText(ui.workerStatus, "zatrzymany", "value-muted");
+      setText(ui.modeStatus, "zatrzymane", "value-muted");
+      setText(ui.handStatus, "brak", "value-muted");
+      ui.toggleBtn.disabled = true;
+      ui.toggleBtn.textContent = "Wznów detekcję";
+      markAction(`system zatrzymany · ${new Date().toLocaleTimeString()}`, "value-warn");
+
+      if (!isOffscreenMode) {
+        drawActiveZone();
+      }
+    }
+
     function renderLoop() {
       rafId = requestAnimationFrame(renderLoop);
       if (detectionPaused || !cameraReady || !worker || !workerReady || workerBusy) return;
@@ -903,6 +942,7 @@
       setOverlaySize();
       drawActiveZone();
     });
+    window.addEventListener("beforeunload", shutdownSystem);
 
     initializeRenderingMode();
     updateConfigInputs();
