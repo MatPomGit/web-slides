@@ -232,7 +232,7 @@ self.addEventListener("message", async (event) => {
     } else if (msg.type === "processFrame") {
       if (paused || !handLandmarker || !msg.bitmap) {
         msg.bitmap?.close?.();
-        self.postMessage({ type: "processed" });
+        self.postMessage({ type: "processed", frameId: msg.frameId });
         return;
       }
 
@@ -243,7 +243,7 @@ self.addEventListener("message", async (event) => {
         const landmarks = result.landmarks[0];
         drawLandmarks(landmarks);
         processGesture(landmarks, msg.timestamp, result.handednesses?.[0]?.[0]?.score ?? 1);
-        self.postMessage({ type: "processed", landmarks });
+        self.postMessage({ type: "processed", frameId: msg.frameId, landmarks });
       } else {
         resetTracking();
         drawActiveZone();
@@ -253,13 +253,13 @@ self.addEventListener("message", async (event) => {
           direction: "brak",
           presence: 0
         }, null);
-        self.postMessage({ type: "processed" });
+        self.postMessage({ type: "processed", frameId: msg.frameId });
       }
     }
   } catch (error) {
     try { msg.bitmap?.close?.(); } catch {}
     self.postMessage({ type: "error", message: error.message || String(error) });
-    self.postMessage({ type: "processed" });
+    self.postMessage({ type: "processed", frameId: msg.frameId });
   }
 });
 
