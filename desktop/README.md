@@ -84,7 +84,7 @@ Jeśli wykrywa **za rzadko**:
 ## Rozwiązywanie problemów
 
 1. **`conda: command not found`**  
-   Zainstaluj Minicondę/Anacondę i uruchom nową sesję terminala.
+   Launcher automatycznie próbuje wykryć Condę w typowych lokalizacjach (`~/miniconda3`, `~/anaconda3`, `/opt/miniconda3`, `/opt/anaconda3`). Jeśli błąd nadal występuje, zainstaluj Minicondę/Anacondę lub dodaj Condę do `PATH`, np. `export PATH="$HOME/miniconda3/bin:$PATH"`.
 
 2. **Brak obrazu z kamery**  
    Spróbuj `--camera-id 1` albo zamknij inne aplikacje, które używają kamery.
