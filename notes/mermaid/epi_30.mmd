@@ -1,0 +1,25 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#FFF3E8',
+  'tertiaryColor':      '#EDE8FF',
+  'fontSize':           '18px'
+}}}%%
+flowchart TD
+  X["Obserwacja x_t"] --> F
+  M[("Pamięć m_t")] --> B
+  C["Model przyczynowy<br/>(SCM / DBN)"] --> D
+
+  F["Percepcja i fuzja"] --> B
+  B["Belief state b_t<br/>P(s_t | x_t, m_t)"] --> D
+  D["Korekta przyczynowa<br/>b_t' = debias(b_t, C)"] --> U
+  U["Kalibracja niepewności<br/>u_t = calib(b_t')"] --> G
+
+  G{"u_t \\leq \\theta<br/>i ryzyko \\leq \\tau ?"}
+  G -- Tak --> P["Planner \\pi(a_t | b_t')"]
+  P --> A["Akcja / odpowiedź a_t"]
+
+  G -- Nie --> Q["Abstencja / pytanie / eskalacja"]
+  Q -. nowe dane .-> X
+  A -. feedback .-> X

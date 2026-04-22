@@ -1,0 +1,130 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EEF3F8',
+  'primaryBorderColor': '#3E5F73',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#F5F1EA',
+  'tertiaryColor':      '#F3F5F7',
+  'fontSize':           '15px'
+}}}%%
+flowchart LR
+
+  subgraph I["Embodied input"]
+    X["x_t=(x_t^v,x_t^a,x_t^l,x_t^g,x_t^p,x_t^o)"]
+    Z["z_t=\\phi(x_t)"]
+    X --> Z
+  end
+
+  subgraph C["Context and memory"]
+    H["h_t"]
+    U["u_t^{usr}"]
+    K["c_t"]
+    Gk["\\mathcal{G}_t"]
+  end
+
+  subgraph B["Belief inference"]
+    S["s_t=(e_t,i_t,n_t,r_t,q_t)"]
+    B0["b_t(s)=P(s_t\\mid z_t,h_t,u_t^{usr},c_t,\\mathcal{G}_t)"]
+    BU["b_t \\propto p(z_t\\mid s_t)\\,p(s_t\\mid h_t,u_t^{usr},c_t)"]
+    Z --> B0
+    H --> B0
+    U --> B0
+    K --> B0
+    Gk --> B0
+    S -. support .-> B0
+    B0 --> BU
+  end
+
+  subgraph W["Causal world model"]
+    Mc["\\mathcal{M}_c=(\\mathcal{X},\\mathcal{U},\\mathcal{F},P(\\mathcal{U}))"]
+    T["p(s_{t+1},z_{t+1}\\mid s_t,a_t,c_t)"]
+    D["b_t^c=\\mathrm{Debias}(b_t,\\mathcal{M}_c)"]
+    CF["\\hat{\\tau}(a)\\sim p(s_{t+1:t+H}\\mid s_t,a_{t:t+H},c_t)"]
+    B0 --> D
+    Mc --> D
+    D --> T
+    T --> CF
+    Mc --> CF
+  end
+
+  subgraph UQ["Uncertainty and calibration"]
+    BC["\\tilde{b}_t=\\mathrm{Calib}(b_t^c)"]
+    Ut["u_t=(u_t^{epi},u_t^{ale})=\\mathcal{U}(\\tilde{b}_t)"]
+    Ga["\\Gamma_\\alpha(x_t)=\\{s:\\sigma(s,x_t)\\le q_{1-\\alpha}\\}"]
+    Rt["\\rho_t=R_{risk}(\\tilde{b}_t,c_t,a_t)"]
+    D --> BC --> Ut
+    BC --> Ga
+    Ut --> Rt
+  end
+
+  subgraph EG["Epistemic gate"]
+    E{"u_t^{epi}\\le \\theta_u<br/>\\rho_t\\le \\theta_r<br/>\\Pr(s_t\\in\\Gamma_\\alpha)\\ge 1-\\alpha"}
+    Ut --> E
+    Ga --> E
+    Rt --> E
+  end
+
+  subgraph EA["Epistemic actions"]
+    Q["a_t^{ask}=\\pi_{ask}(\\tilde{b}_t,c_t)"]
+    O["a_t^{obs}=\\arg\\max_a I(s_{t+1};o_{t+1}\\mid do(a))"]
+    HN["a_t^{esc}=\\pi_{esc}(u_t,\\rho_t)"]
+  end
+
+  subgraph P["ECRP policy and planning"]
+    Pi["\\pi(a_t\\mid \\tilde{b}_t,h_t,c_t,\\mathcal{G}_t)"]
+    J["J(a)=R_{task}+\\lambda_1R_{emo}+\\lambda_2R_{soc}+\\lambda_3R_{comfort}-\\lambda_4R_{risk}-\\lambda_5R_{effort}"]
+    Aopt["a_{t:t+H}^*=\\arg\\max_{a_{t:t+H}}\\,\\mathbb{E}\\sum_{k=0}^{H}\\gamma^k J(a_{t+k})"]
+    E -- yes --> Pi
+    Pi --> J --> Aopt
+    CF --> Aopt
+  end
+
+  subgraph EX["Execution"]
+    Y0["y_t=\\Pi(a_t^*)"]
+    Ys["y_t^{sp}=\\Pi_{lang}(a_t^*)"]
+    Yg["y_t^{soc}=\\Pi_{soc}(a_t^*)"]
+    Ym["y_t^{mot}=\\Pi_{mot}(a_t^*)"]
+    Aopt --> Y0
+    Y0 --> Ys
+    Y0 --> Yg
+    Y0 --> Ym
+  end
+
+  subgraph SH["Safety shield"]
+    Ps["a_t^{safe}=\\mathrm{Proj}_{\\mathcal{S}}(a_t^*)"]
+    Phy["\\|F_{contact}\\|\\le F_{max},\\ d_{human}\\ge d_{min}"]
+    Eth["\\chi(a_t,c_t)=1"]
+    Ho["h_t^{sup}\\in\\{0,1\\}"]
+    Y0 --> Ps
+    Phy --> Ps
+    Eth --> Ps
+    Ho --> Ps
+  end
+
+  subgraph FB["Outcome and learning"]
+    Act["y_t=\\{y_t^{sp},y_t^{soc},y_t^{mot}\\}"]
+    R["r_t=r_{task}+\\lambda_1r_{emo}+\\lambda_2r_{soc}-\\lambda_3r_{risk}"]
+    Bn["b_{t+1}=\\mathrm{BayesUpdate}(b_t,x_{t+1})"]
+    Pn["\\pi\\leftarrow \\pi+\\eta\\nabla_\\pi\\,\\mathbb{E}[J(a)]"]
+    Mn["(h_{t+1},u_{t+1}^{usr},\\mathcal{G}_{t+1})=\\mathrm{Update}(h_t,u_t^{usr},\\mathcal{G}_t,x_{t+1},y_t)"]
+    Kn["(\\theta_u,\\theta_r,\\alpha)\\leftarrow \\mathrm{Adapt}(r_t,u_t,\\rho_t)"]
+    Ps --> Act --> R
+    R --> Bn
+    R --> Pn
+    R --> Mn
+    R --> Kn
+  end
+
+  E -- no --> Q
+  E -- no --> O
+  E -- no --> HN
+
+  Q -. x_{t+1} .-> X
+  O -. x_{t+1} .-> X
+  HN -. supervised outcome .-> R
+
+  Bn -. posterior .-> B0
+  Pn -. policy .-> Pi
+  Mn -. memory .-> H
+  Mn -. user model .-> U
+  Mn -. graph .-> Gk
+  Kn -. recalibration .-> BC

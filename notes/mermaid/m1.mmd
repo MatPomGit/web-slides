@@ -1,0 +1,28 @@
+
+
+flowchart LR
+
+  subgraph KOR["❌ System korelacyjny"]
+    direction LR
+    A["Dane wejściowe (twarz + otoczenie)"] --> B["CNN / Transformer klasyfikator"]
+    B --> C["Etykieta emocji p = 0.81"]
+    A -. "fałszywy skrót kontekst → etykieta" .-> C
+  end
+
+  subgraph PRZY["✅ Architektura przyczynowo-kontekstowa"]
+    direction TB
+    D["Głos / prosodia"] --> H
+    E["Mimika"] --> H
+    F["Historia dialogu"] --> H
+    G["Kontekst sytuacyjny i relacyjny"] --> H
+    N[("Pamięć kontekstowa")]
+    I[("Knowledge graph")]
+    J[["SCM / DBN / world model"]]
+    H(["Belief state P(emocja, intencja, potrzeba | dane)"])
+    N --> H
+    I <--> H
+    J <--> H
+    H --> K{{"Skalibrowana pewność ≥ θ?"}}
+    K -- TAK --> L["✅ Działanie / odpowiedź"]
+    K -- NIE --> M["❓ Dopytanie / abstencja / eskalacja"]
+  end

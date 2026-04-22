@@ -1,0 +1,21 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#FFF3E8',
+  'tertiaryColor':      '#EDE8FF',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  IN["Wejście multimodalne"] --> PF["Percepcja i fuzja"]
+  MEM[("Pamięć dialogu")] --> BS
+  SCM["Model przyczynowy"] --> BS
+  PF --> BS["Belief state<br/>P(stan użytkownika | dane, kontekst)"]
+  BS --> CAL["Kalibracja niepewności<br/>i korekta biasu"]
+  CAL --> DEC{"Czy pewność i bezpieczeństwo<br/>są wystarczające?"}
+  DEC -- Tak --> PLAN["Planner reakcji"]
+  PLAN --> ACT["Odpowiedź systemu"]
+  DEC -- Nie --> ASK["Dopytanie / abstencja / eskalacja"]
+
+  ACT -. sprzężenie zwrotne .-> IN
+  ASK -. nowe dane .-> IN

@@ -1,0 +1,17 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F4F1EB',
+  'primaryBorderColor': '#5E6A75',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#EEF3F8',
+  'tertiaryColor':      '#F2F5F2',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  P["Percepcja<br/>x_t, e_t, kontekst"] --> I["Wnioskowanie<br/>s_t, \\hat{u}_t"]
+  I --> G{"Bramka epistemiczna<br/>czy stan wiedzy jest wystarczający?"}
+  G -- Tak --> PL["ECRP Planner<br/>\\pi(a_t | s_t, kontekst)<br/>max U = R_{task} + \\lambda R_{emo}"]
+  G -- Nie --> Q["Pozyskanie informacji<br/>dopytanie / obserwacja / defer"]
+  Q --> P
+  PL --> A["Działanie<br/>reakcja / decyzja"]
+  A --> FB["Sprzężenie zwrotne<br/>wynik, emocja, nowy kontekst"]
+  FB --> P

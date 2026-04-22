@@ -1,0 +1,42 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EEF3F8',
+  'primaryBorderColor': '#3E5F73',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#F5F1EA',
+  'tertiaryColor':      '#F3F5F7',
+  'fontSize':           '15px'
+}}}%%
+flowchart LR
+
+  X["Percepcja ucieleśniona<br/>(1) x_t=(x_t^v,x_t^a,x_t^l,x_t^g,x_t^p,x_t^o)<br/>(2) z_t=\\phi(x_t)"]
+
+  M[("Pamięć i kontekst<br/>h_t, u_t^{usr}, c_t, \\mathcal{G}_t")]
+
+  B["Stan przekonań<br/>(3) b_t(s)=P(s_t\\mid z_t,h_t,u_t^{usr},c_t,\\mathcal{G}_t)<br/>(4) b_t\\propto p(z_t\\mid s_t)\\,p(s_t\\mid h_t,u_t^{usr},c_t)"]
+
+  W["Warstwa kauzalna / model świata<br/>(5) b_t^c=\\mathrm{Debias}(b_t,\\mathcal{M}_c)<br/>(6) \\hat{\\tau}(a)\\sim p(s_{t+1:t+H}\\mid s_t,a_{t:t+H},c_t)"]
+
+  U["Kalibracja i ryzyko<br/>(7) \\tilde{b}_t=\\mathrm{Calib}(b_t^c)<br/>(8) u_t=\\mathcal{U}(\\tilde{b}_t),\\; \\rho_t=R_{risk}(\\tilde{b}_t,c_t,a_t)<br/>(9) \\Gamma_\\alpha(x_t)=\\{s:\\sigma(s,x_t)\\le q_{1-\\alpha}\\}"]
+
+  G{"Bramka epistemiczna<br/>(10) u_t^{epi}\\le\\theta_u \\land \\rho_t\\le\\theta_r<br/>\\land \\Pr(s_t\\in\\Gamma_\\alpha)\\ge 1-\\alpha ?"}
+
+  P["Planner ECRP<br/>(11) \\pi(a_t\\mid \\tilde{b}_t,h_t,c_t,\\mathcal{G}_t)<br/>(12) J(a)=R_{task}+\\lambda_1R_{emo}+\\lambda_2R_{soc}+\\lambda_3R_{comfort}-\\lambda_4R_{risk}-\\lambda_5R_{effort}<br/>(13) a^*_{t:t+H}=\\arg\\max \\mathbb{E}\\sum_{k=0}^{H}\\gamma^k J(a_{t+k})"]
+
+  Q["Akcje epistemiczne<br/>(14) a_t^{ask}, a_t^{obs}=\\arg\\max_a I(s_{t+1};o_{t+1}\\mid do(a)), a_t^{esc}"]
+
+  E["Wykonanie i bezpieczeństwo<br/>(15) y_t=\\Pi(a_t^*)<br/>(16) a_t^{safe}=\\mathrm{Proj}_{\\mathcal{S}}(a_t^*)<br/>(17) \\|F_{contact}\\|\\le F_{max},\\; d_{human}\\ge d_{min}"]
+
+  R["Wynik i uczenie<br/>(18) r_t=r_{task}+\\lambda_1r_{emo}+\\lambda_2r_{soc}-\\lambda_3r_{risk}<br/>(19) b_{t+1}=\\mathrm{BayesUpdate}(b_t,x_{t+1})<br/>(20) \\pi\\leftarrow \\pi+\\eta\\nabla_\\pi\\mathbb{E}[J(a)]"]
+
+  X --> B
+  M --> B
+  B --> W
+  W --> U
+  U --> G
+  G -- Tak --> P
+  G -- Nie --> Q
+  P --> E
+  E --> R
+  R -. x_{t+1} .-> X
+  R -. update .-> M
+  Q -. nowe dane .-> X

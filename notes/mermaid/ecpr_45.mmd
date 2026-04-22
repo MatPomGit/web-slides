@@ -1,0 +1,11 @@
+flowchart LR
+  O["Obserwacja"] --> B["Belief state"]
+  C[("Kontekst")] --> B
+  B --> G{"Niepewność ≤ θ?"}
+  G -- Tak --> P["ECRP Planner"]
+  G -- Nie --> Q["Dopytaj / eskaluj"]
+  P --> A["Działanie"]
+  A --> R["Reward: task + emotion"]
+  A --> O
+  Q --> O
+  R -. uczenie .-> P

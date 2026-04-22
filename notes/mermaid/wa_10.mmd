@@ -1,0 +1,22 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F7F4EF',
+  'primaryBorderColor': '#6E7B8B',
+  'lineColor':          '#4F5B66',
+  'secondaryColor':     '#EEF2F7',
+  'tertiaryColor':      '#F4F7F4',
+  'fontSize':           '16px'
+}}}%%
+flowchart TD
+  X["Obserwacja multimodalna x_t<br/>(audio, wideo, tekst, kontekst)"] --> V
+  V["Encoder V<br/>q(z_t | x_t)<br/>estymacja reprezentacji latentnej"] --> M
+  M["World Model M<br/>p(z_{t+1}, e_{t+1} | z_t, a_t, h_t, kontekst)<br/>dynamika stanu i przewidywanie efektów"] --> S
+  S["Symulacja wewnętrzna<br/>rollout scenariuszy kontrfaktycznych"] --> C
+  C["Planner / Controller C<br/>wybór działania a_t<br/>na podstawie z_t, h_t i przewidywanych konsekwencji"] --> G
+
+  G{"Ocena przewidywanego wyniku<br/>bezpieczeństwo / adekwatność / zgodność z celem"}
+  G -- Tak --> Y["Działanie lub odpowiedź systemu y_t"]
+  G -- Nie --> R["Wstrzymanie działania / dopytanie / zmiana planu"]
+
+  Y --> O["Nowa obserwacja x_{t+1}"]
+  R --> O
+  O -. aktualizacja stanu latentnego i pamięci .-> V

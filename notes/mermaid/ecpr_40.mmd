@@ -1,0 +1,24 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#E8F5EE',
+  'primaryBorderColor': '#2A8A5A',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  OBS["Obserwacja<br/>multimodalna"] --> BEL
+  CM[("Context memory")] --> BEL
+
+  BEL["Belief state<br/>P(emocja, kontekst | dane)"] --> G
+  G{"Bramka epistemyczna<br/>czy niepewność jest akceptowalna?"}
+
+  G -- Tak --> PLAN["ECRP Planner<br/>planowanie w horyzoncie H"]
+  G -- Nie --> ASK["Dopytanie / eskalacja"]
+
+  PLAN --> ACT["Działanie<br/>(dialog / ruch / wsparcie)"]
+  ACT --> REW["Ocena wyniku<br/>reward = trafność zadaniowa + adekwatność emocjonalna"]
+
+  REW -. uczenie polityki .-> PLAN
+  ACT --> OBS
+  ASK -. nowe dane .-> OBS

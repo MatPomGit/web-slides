@@ -1,0 +1,39 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EDE8FF',
+  'primaryBorderColor': '#6A4FB5',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#E8F5EE',
+  'tertiaryColor':      '#FFF3E8'
+}}}%%
+flowchart LR
+
+  subgraph T["⏱ Chwila t"]
+    direction TB
+    Ct["Kontekstₜ"]
+    Et(("Emocjaₜ
+stan ukryty"))
+    St["Sygnałyₜ
+(audio / wideo / tekst)"]
+    Ot(["Obserwacjeₜ"])
+    Ct --> St
+    Ct --> Et
+    Et --> St
+    St --> Ot
+  end
+
+  subgraph T1["⏱ Chwila t+1"]
+    direction TB
+    Ct1["Kontekstₜ₊₁"]
+    Et1(("Emocjaₜ₊₁
+stan ukryty"))
+    St1["Sygnałyₜ₊₁"]
+    Ot1(["Obserwacjeₜ₊₁"])
+    Ct1 --> St1
+    Ct1 --> Et1
+    Et1 --> St1
+    St1 --> Ot1
+  end
+
+  Ct --> Ct1
+  Et -. "P(Eₜ₊₁ | Eₜ, Cₜ, aₜ)" .-> Et1
+  St -. "dynamika sygnału" .-> St1

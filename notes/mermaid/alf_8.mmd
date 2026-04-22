@@ -1,0 +1,120 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EEF3F8',
+  'primaryBorderColor': '#3E5F73',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#F5F1EA',
+  'tertiaryColor':      '#F3F5F7',
+  'fontSize':           '15px'
+}}}%%
+flowchart TD
+
+  subgraph L1["1. Percepcja ucieleśniona"]
+    X["Obserwacja multimodalna<br/>x_t = (x_t^v, x_t^a, x_t^l, x_t^g, x_t^p, x_t^o)"]
+    Z["Reprezentacja latentna<br/>(1) &nbsp; z_t = \\phi(x_t)"]
+    X --> Z
+  end
+
+  subgraph L2["2. Pamięć, kontekst i model użytkownika"]
+    H["Historia interakcji<br/>h_t = {y_1,...,y_{t-1}, a_1,...,a_{t-1}}"]
+    U["Model użytkownika<br/>u_t^{usr} = (pref_t, role_t, trust_t, profile_t)"]
+    C["Kontekst społeczno-zadaniowy<br/>c_t = (task_t, prox_t, scene_t, norm_t)"]
+    Gk["Pamięć semantyczna / graf wiedzy<br/>\\mathcal{G}_t = (V_t, E_t)"]
+  end
+
+  subgraph L3["3. Probabilistyczny stan przekonań"]
+    B["Belief state<br/>(2) &nbsp; b_t(s) = P(s_t \\mid z_t, h_t, u_t^{usr}, c_t, \\mathcal{G}_t)"]
+    BU["Aktualizacja posterioru<br/>(3) &nbsp; b_t(s) \\propto p(z_t \\mid s_t)\\, p(s_t \\mid h_t, u_t^{usr}, c_t)"]
+  end
+
+  subgraph L4["4. Warstwa kauzalna i model świata"]
+    Mc["Model przyczynowy<br/>\\mathcal{M}_c = (\\mathcal{X}, \\mathcal{U}, \\mathcal{F}, P(\\mathcal{U}))"]
+    Db["Korekta przyczynowa<br/>(4) &nbsp; b_t^c = \\mathrm{Debias}(b_t, \\mathcal{M}_c)"]
+    T["Dynamika świata<br/>(5) &nbsp; p(s_{t+1}, z_{t+1} \\mid s_t, a_t, c_t)"]
+    Cf["Symulacja kontrfaktyczna<br/>(6) &nbsp; \\hat{\\tau}(a) \\sim p(s_{t+1:t+H} \\mid s_t, a_{t:t+H}, c_t)"]
+  end
+
+  subgraph L5["5. Kalibracja, niepewność i bramka epistemiczna"]
+    Cal["Kalibracja posterioru<br/>(7) &nbsp; \\tilde{b}_t = \\mathrm{Calib}(b_t^c)"]
+    Unc["Niepewność<br/>(8) &nbsp; u_t = (u_t^{epi}, u_t^{ale}) = \\mathcal{U}(\\tilde{b}_t)"]
+    Conf["Conformal set<br/>(9) &nbsp; \\Gamma_\\alpha(x_t)=\\{s : \\sigma(s,x_t) \\le q_{1-\\alpha}\\}"]
+    Risk["Ryzyko decyzyjne<br/>(10) &nbsp; \\rho_t = R_{risk}(\\tilde{b}_t, c_t, a_t)"]
+    Gate{"Bramka epistemiczna<br/>(11) &nbsp; u_t^{epi} \\le \\theta_u \\land \\rho_t \\le \\theta_r \\land \\Pr(s_t \\in \\Gamma_\\alpha) \\ge 1-\\alpha ?"}
+  end
+
+  subgraph L6["6. Planowanie ECRP i akcje epistemiczne"]
+    Pi["Polityka<br/>(12) &nbsp; \\pi(a_t \\mid \\tilde{b}_t, h_t, c_t, \\mathcal{G}_t)"]
+    J["Funkcja celu<br/>(13) &nbsp; J(a)=R_{task}+\\lambda_1 R_{emo}+\\lambda_2 R_{soc}+\\lambda_3 R_{comfort}-\\lambda_4 R_{risk}-\\lambda_5 R_{effort}"]
+    Opt["Planowanie w horyzoncie H<br/>(14) &nbsp; a_{t:t+H}^* = \\arg\\max \\mathbb{E}\\sum_{k=0}^{H} \\gamma^k J(a_{t+k})"]
+    Ask["Dopytanie<br/>(15a) &nbsp; a_t^{ask}=\\pi_{ask}(\\tilde{b}_t,c_t)"]
+    Obs["Aktywna percepcja<br/>(15b) &nbsp; a_t^{obs}=\\arg\\max_a I(s_{t+1}; o_{t+1} \\mid do(a))"]
+    Esc["Eskalacja<br/>(15c) &nbsp; a_t^{esc}=\\pi_{esc}(u_t,\\rho_t)"]
+  end
+
+  subgraph L7["7. Wykonanie i osłona bezpieczeństwa"]
+    Dec["Dekodowanie działania<br/>(16) &nbsp; y_t = \\Pi(a_t^*)"]
+    Shield["Safety shield<br/>(17) &nbsp; a_t^{safe}=\\mathrm{Proj}_{\\mathcal{S}}(a_t^*)"]
+    Phys["Ograniczenia fizyczne<br/>(18a) &nbsp; \\|F_{contact}\\| \\le F_{max},\\ d_{human} \\ge d_{min}"]
+    Eth["Ograniczenia społ.-etyczne<br/>(18b) &nbsp; \\chi(a_t,c_t)=1"]
+    Hum["Human override<br/>(18c) &nbsp; h_t^{sup} \\in \\{0,1\\}"]
+  end
+
+  subgraph L8["8. Wynik i uczenie"]
+    Act["Akcja robota humanoidalnego<br/>(19) &nbsp; y_t = {y_t^{sp}, y_t^{soc}, y_t^{mot}}"]
+    Rew["Nagroda / ocena wyniku<br/>(20) &nbsp; r_t = r_{task}+\\lambda_1 r_{emo}+\\lambda_2 r_{soc}-\\lambda_3 r_{risk}"]
+    Bn["Aktualizacja belief state<br/>(21) &nbsp; b_{t+1}=\\mathrm{BayesUpdate}(b_t, x_{t+1})"]
+    Pn["Aktualizacja polityki<br/>(22) &nbsp; \\pi \\leftarrow \\pi + \\eta \\nabla_\\pi \\mathbb{E}[J(a)]"]
+    Mn["Aktualizacja pamięci i modelu użytkownika<br/>(23) &nbsp; (h_{t+1},u_{t+1}^{usr},\\mathcal{G}_{t+1})=\\mathrm{Update}(h_t,u_t^{usr},\\mathcal{G}_t,x_{t+1},y_t)"]
+    Kn["Adaptacja progów i kalibracji<br/>(24) &nbsp; (\\theta_u,\\theta_r,\\alpha) \\leftarrow \\mathrm{Adapt}(r_t,u_t,\\rho_t)"]
+  end
+
+  Z --> B
+  H --> B
+  U --> B
+  C --> B
+  Gk --> B
+  B --> BU
+
+  B --> Db
+  Mc --> Db
+  Db --> T
+  T --> Cf
+
+  Db --> Cal
+  Cal --> Unc
+  Cal --> Conf
+  Unc --> Risk
+  Unc --> Gate
+  Conf --> Gate
+  Risk --> Gate
+
+  Gate -- Tak --> Pi
+  Pi --> J --> Opt
+  Cf --> Opt
+
+  Gate -- Nie --> Ask
+  Gate -- Nie --> Obs
+  Gate -- Nie --> Esc
+
+  Opt --> Dec
+  Dec --> Shield
+  Phys --> Shield
+  Eth --> Shield
+  Hum --> Shield
+
+  Shield --> Act
+  Act --> Rew
+  Rew --> Bn
+  Rew --> Pn
+  Rew --> Mn
+  Rew --> Kn
+
+  Ask -. nowe dane .-> X
+  Obs -. nowe obserwacje .-> X
+  Esc -. nadzór człowieka .-> Rew
+
+  Bn -. posterior .-> B
+  Pn -. polityka .-> Pi
+  Mn -. pamięć .-> H
+  Mn -. model użytkownika .-> U
+  Mn -. graf wiedzy .-> Gk
+  Kn -. rekalibracja .-> Cal

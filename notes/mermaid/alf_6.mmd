@@ -1,0 +1,176 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '16px'
+}}}%%
+flowchart LR
+
+  %% =========================
+  %% INPUT / PERCEPTION
+  %% =========================
+  subgraph P["Percepcja ucieleśniona i fuzja multimodalna"]
+    X["Wejście surowe<br/>x_t = {x_t^v, x_t^a, x_t^l, x_t^g, x_t^p, x_t^o}"]
+    ENC["Kodowanie modalne<br/>z_t^m = f_m(x_t^m), m ∈ {v,a,l,g,p,o}"]
+    FUS["Fuzja multimodalna<br/>z_t = Fuse(z_t^v, z_t^a, z_t^l, z_t^g, z_t^p, z_t^o)"]
+    X --> ENC --> FUS
+  end
+
+  %% =========================
+  %% MEMORY / CONTEXT
+  %% =========================
+  subgraph M["Pamięć, kontekst i model użytkownika"]
+    H["Historia interakcji<br/>h_t = {y_1,...,y_{t-1}, u_1,...,u_{t-1}}"]
+    U["Model użytkownika<br/>u_t^user = (pref_t, role_t, profile_t, trust_t)"]
+    C["Kontekst społeczno-sytuacyjny<br/>c_t = (task_t, scene_t, prox_t, norm_t)"]
+    KG["Graf wiedzy / pamięć semantyczna<br/>G_t = (V_t, E_t)"]
+  end
+
+  %% =========================
+  %% BELIEF STATE
+  %% =========================
+  subgraph B["Probabilistyczny stan przekonań"]
+    BEL["Belief state<br/>b_t = P(s_t | z_t, h_t, c_t, u_t^user, G_t)"]
+    LAT["Stan ukryty użytkownika i zadania<br/>s_t = (e_t, i_t, n_t, r_t, q_t)"]
+    POST["Aktualizacja posterioru<br/>b_t ∝ p(z_t | s_t) · p(s_t | h_t, c_t, u_t^user)"]
+    FUS --> BEL
+    H --> BEL
+    U --> BEL
+    C --> BEL
+    KG --> BEL
+    BEL --> POST
+    LAT -. przestrzeń stanów .-> BEL
+  end
+
+  %% =========================
+  %% CAUSAL / WORLD MODEL
+  %% =========================
+  subgraph W["Warstwa kauzalna i world model"]
+    SCM["Model przyczynowy<br/>M_c = (X, U, F, P(U))"]
+    DBN["Dynamika świata / DBN<br/>p(s_{t+1}, z_{t+1} | s_t, a_t, c_t)"]
+    CF["Wnioskowanie kontrfaktyczne<br/>s_{t+1}^{cf}(a) = do(a_t = a)"]
+    DEB["Debiasing przyczynowy<br/>b_t^c = Debias(b_t, M_c)"]
+    BEL --> DEB
+    SCM --> DEB
+    DEB --> DBN
+    SCM --> CF
+    DBN --> CF
+  end
+
+  %% =========================
+  %% UNCERTAINTY / CALIBRATION
+  %% =========================
+  subgraph K["Kalibracja i niepewność"]
+    CAL["Kalibracja posterioru<br/>\\tilde{b}_t = Calib(b_t^c)"]
+    UNC["Niepewność epistemiczna i aleatoryczna<br/>u_t = (u_t^{epi}, u_t^{ale})"]
+    CONF["Conformal / selective prediction<br/>Γ_α(x_t) = {s : score(s,x_t) ≤ q_{1-α}}"]
+    RISK["Funkcja ryzyka<br/>ρ_t = R_{risk}(\\tilde{b}_t, c_t, a_t)"]
+    DEB --> CAL --> UNC
+    CAL --> CONF
+    UNC --> RISK
+  end
+
+  %% =========================
+  %% EPISTEMIC GATE
+  %% =========================
+  subgraph EPI["Bramka epistemiczna"]
+    G{"u_t^{epi} ≤ θ_u<br/>∧ ρ_t ≤ θ_r<br/>∧ Cov(Γ_α) ≥ 1-α ?"}
+    UNC --> G
+    CONF --> G
+    RISK --> G
+  end
+
+  %% =========================
+  %% EPISTEMIC ACTIONS
+  %% =========================
+  subgraph EA["Akcje epistemiczne"]
+    ASK["Dopytanie językowe<br/>a_t^{ask} = Query(\\tilde{b}_t, c_t)"]
+    OBS["Aktywna percepcja<br/>a_t^{obs} = Sense*(argmax IG)"]
+    ESC["Eskalacja do człowieka<br/>a_t^{esc} = Handover(r_t, u_t^{epi})"]
+    IG["Przyrost informacji<br/>IG(a) = I(s_{t+1}; o_{t+1} | do(a))"]
+  end
+
+  %% =========================
+  %% PLANNING
+  %% =========================
+  subgraph PL["Planner społeczno-zorientowany ECRP"]
+    POL["Polityka<br/>π(a_t | \\tilde{b}_t, h_t, c_t, G_t)"]
+    RWD["Użyteczność wielokryterialna<br/>J(a) = R_task + λ_1 R_emo + λ_2 R_comfort + λ_3 R_social - λ_4 R_risk - λ_5 R_effort"]
+    HOR["Horyzont planowania<br/>a_{t:t+H}^* = argmax E[∑_{k=0}^{H} γ^k J(a_{t+k})]"]
+    SIM["Rollout kontrfaktyczny<br/>τ̂(a) ~ p(s_{t+1:t+H} | s_t, a_{t:t+H}, c_t)"]
+    G -- Tak --> POL
+    POL --> RWD --> HOR
+    CF --> SIM
+    DBN --> SIM
+    SIM --> HOR
+  end
+
+  %% =========================
+  %% EXECUTION
+  %% =========================
+  subgraph EX["Wykonanie multimodalne"]
+    DEC["Dekodowanie aktu robota<br/>y_t = Π(a_t^*)"]
+    SPE["Mowa / dialog<br/>y_t^{sp} = π_{lang}(a_t^*)"]
+    GES["Gest / mimika / spojrzenie<br/>y_t^{soc} = π_{soc}(a_t^*)"]
+    MOT["Ruch / manipulacja<br/>y_t^{mot} = π_{mot}(a_t^*)"]
+    HOR --> DEC
+    DEC --> SPE
+    DEC --> GES
+    DEC --> MOT
+  end
+
+  %% =========================
+  %% SAFETY SHIELD
+  %% =========================
+  subgraph S["Osłona bezpieczeństwa i nadzór"]
+    SH["Safety shield<br/>a_t^{safe} = Proj_𝒮(a_t^*)"]
+    PHY["Ograniczenia fizyczne<br/>‖F_contact‖ ≤ F_max, d_human ≥ d_min"]
+    ETH["Ograniczenia społeczne i etyczne<br/>Policy(a_t, c_t) = admissible"]
+    HUM["Human override / supervisory control"]
+    DEC --> SH
+    PHY --> SH
+    ETH --> SH
+    HUM --> SH
+  end
+
+  %% =========================
+  %% OUTPUT / FEEDBACK
+  %% =========================
+  subgraph O["Zachowanie i sprzężenie zwrotne"]
+    ACT["Akcja robota humanoidalnego<br/>y_t = {speech, gesture, motion, manipulation}"]
+    FB["Nowe dane i reward<br/>r_t = r_task + λ_1 r_emo + λ_2 r_social - λ_3 r_risk"]
+    SH --> ACT --> FB
+  end
+
+  %% =========================
+  %% LEARNING / UPDATE
+  %% =========================
+  subgraph L["Aktualizacja modeli"]
+    UPB["Aktualizacja belief state<br/>b_{t+1} ← BayesUpdate(b_t, x_{t+1})"]
+    UPP["Uczenie polityki<br/>π ← π + η ∇_π E[J(a)]"]
+    UPM["Aktualizacja pamięci i modelu użytkownika<br/>m_{t+1}, u_{t+1}^{user} ← Update(h_t, x_{t+1}, y_t)"]
+    UPC["Adaptacja kalibracji / progów<br/>θ_u, θ_r, α ← Adapt(feedback)"]
+    FB --> UPB
+    FB --> UPP
+    FB --> UPM
+    FB --> UPC
+  end
+
+  %% =========================
+  %% FEEDBACK CONNECTIONS
+  %% =========================
+  G -- Nie --> ASK
+  G -- Nie --> OBS
+  G -- Nie --> ESC
+
+  ASK -. odpowiedź użytkownika .-> X
+  OBS -. nowe obserwacje .-> X
+  ESC -. przejęcie przez człowieka .-> FB
+
+  UPB -. posterior .-> BEL
+  UPP -. polityka .-> POL
+  UPM -. pamięć .-> H
+  UPM -. model użytkownika .-> U
+  UPC -. kalibracja .-> CAL

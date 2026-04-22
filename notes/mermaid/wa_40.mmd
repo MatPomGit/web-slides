@@ -1,0 +1,18 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F5F1EA',
+  'primaryBorderColor': '#5E6A75',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#EEF3F8',
+  'tertiaryColor':      '#F2F5F2',
+  'fontSize':           '20px'
+}}}%%
+flowchart LR
+  X["Obserwacja x_t"] --> Z["Encoder<br/>z_t"]
+  Z --> M["Model świata<br/>p(z_{t+1}, e_{t+1} | z_t, a_t)"]
+  M --> C["Planner / Controller<br/>a_t"]
+  C --> G{"Ocena skutku"}
+  G -- Tak --> Y["Działanie / odpowiedź"]
+  G -- Nie --> R["Dopytanie / wstrzymanie"]
+
+  Y -. x_{t+1} .-> Z
+  R -. nowa obserwacja .-> Z

@@ -1,0 +1,46 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F6F3EE',
+  'primaryBorderColor': '#5F6B7A',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#EEF3F8',
+  'tertiaryColor':      '#F3F6F3',
+  'fontSize':           '16px'
+}}}%%
+flowchart LR
+  X["Obserwacja x_t<br/>(audio, wideo, tekst, kontekst)"]
+
+  subgraph P["Perception"]
+    V["Encoder<br/>q(z_t | x_t)"]
+  end
+
+  subgraph W["World Model"]
+    H["Stan pamięci h_t"]
+    M["Model dynamiki<br/>p(z_{t+1}, e_{t+1} | z_t, a_t, h_t, kontekst)"]
+    S["Rollout kontrfaktyczny<br/>symulacja trajektorii przyszłych stanów"]
+    H --> M
+    M --> S
+  end
+
+  subgraph A["Action Selection"]
+    C["Planner / Policy<br/>a_t = \\pi(z_t, h_t, \\hat{\\tau})"]
+  end
+
+  subgraph F["Safety / Evaluation"]
+    G{"Czy przewidywany wynik spełnia<br/>kryteria bezpieczeństwa i celu?"}
+  end
+
+  Y["Wyjście systemu y_t<br/>(odpowiedź, decyzja, sterowanie)"]
+  R["Wstrzymanie / dopytanie / replanning"]
+  O["Nowa obserwacja x_{t+1}"]
+
+  X --> V
+  V --> M
+  V --> C
+  S --> C
+  C --> G
+  G -- Tak --> Y
+  G -- Nie --> R
+  Y --> O
+  R --> O
+  O -. aktualizacja reprezentacji i pamięci .-> V
+  O -. aktualizacja stanu ukrytego .-> H

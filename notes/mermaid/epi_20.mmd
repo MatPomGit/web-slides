@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#FFF3E8',
+  'tertiaryColor':      '#EDE8FF',
+  'fontSize':           '18px'
+}}}%%
+flowchart TD
+  IN["Wejście multimodalne<br/>(audio · wideo · tekst · sytuacja)"] --> PF
+
+  PF["Percepcja i fuzja<br/>reprezentacja obserwacji"] --> BS
+  MEM[("Pamięć dialogu i model użytkownika")] --> BS
+  SCM["Model przyczynowy<br/>(SCM / DBN / world model)"] --> DEB
+
+  BS["Belief state<br/>P(stan użytkownika | dane, kontekst, historia)"] --> DEB
+  DEB["Korekta przyczynowa / debiasing<br/>redukcja spurious shortcuts"] --> CAL
+  CAL["Kalibracja niepewności<br/>(conformal / temperature / selective prediction)"] --> DEC
+
+  DEC{"Czy pewność i bezpieczeństwo<br/>spełniają próg decyzji?"}
+  DEC -- Tak --> PLAN["Planner reakcji"]
+  PLAN --> ACT["Odpowiedź systemu"]
+
+  DEC -- Nie --> ASK["Dopytanie / abstencja / eskalacja"]
+  ASK -. nowe dane .-> IN
+  ACT -. sprzężenie zwrotne .-> IN

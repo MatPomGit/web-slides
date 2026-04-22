@@ -1,0 +1,28 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EEF3F8',
+  'primaryBorderColor': '#3E5F73',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#F5F1EA',
+  'tertiaryColor':      '#F3F5F7',
+  'fontSize':           '15px'
+}}}%%
+flowchart LR
+  X["Percepcja<br/>x_t,\\; z_t=\\phi(x_t)"]
+  M[("Pamięć i kontekst<br/>h_t, u_t^{usr}, c_t, \\mathcal{G}_t")]
+  B["Belief state<br/>b_t=P(s_t\\mid z_t,h_t,u_t^{usr},c_t,\\mathcal{G}_t)"]
+  W["Kauzalność / world model<br/>b_t^c=\\mathrm{Debias}(b_t,\\mathcal{M}_c)"]
+  U["Kalibracja i ryzyko<br/>\\tilde{b}_t=\\mathrm{Calib}(b_t^c),\\; u_t,\\rho_t"]
+  G{"u_t^{epi}\\le\\theta_u \\land \\rho_t\\le\\theta_r ?"}
+  P["ECRP<br/>a^*_{t:t+H}=\\arg\\max \\mathbb{E}\\sum_{k=0}^{H}\\gamma^k J(a_{t+k})"]
+  Q["Dopytanie / obserwacja / eskalacja"]
+  E["Wykonanie bezpieczne<br/>a_t^{safe}=\\mathrm{Proj}_{\\mathcal{S}}(a_t^*)"]
+  R["Wynik i uczenie<br/>r_t,\\; b_{t+1},\\; \\pi\\leftarrow\\pi+\\eta\\nabla_\\pi\\mathbb{E}[J(a)]"]
+
+  X --> B
+  M --> B
+  B --> W --> U --> G
+  G -- Tak --> P --> E --> R
+  G -- Nie --> Q
+  R -. x_{t+1} .-> X
+  R -. update .-> M
+  Q -. nowe dane .-> X

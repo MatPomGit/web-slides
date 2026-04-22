@@ -1,0 +1,17 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F4F1EB',
+  'primaryBorderColor': '#5E6A75',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#EEF3F8',
+  'tertiaryColor':      '#F2F5F2',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  X["Percepcja<br/>x_t, c_t, e_t"] --> S["Wnioskowanie<br/>s_t, u_t"]
+  S --> E{"Bramka epistemiczna"}
+  E -- wystarczająca wiedza --> P["ECRP<br/>\\max\\; R_{task} + \\lambda R_{emo}"]
+  E -- niewystarczająca wiedza --> I["Dodatkowa informacja"]
+  I --> X
+  P --> A["Działanie a_t"]
+  A --> Y["Wynik y_t + feedback"]
+  Y --> X

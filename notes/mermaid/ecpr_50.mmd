@@ -1,0 +1,24 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#E8F5EE',
+  'primaryBorderColor': '#2A8A5A',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  X["Obserwacja x_t"] --> B
+  M[("Pamięć kontekstowa c_t")] --> B
+
+  B["Belief state b_t<br/>P(e_t, c_t | x_t)"] --> E
+  E{"u(b_t) \\leq \\theta ?"}
+
+  E -- Tak --> P["ECRP planner<br/>a_t^* = argmax U(a | b_t, H)"]
+  E -- Nie --> Q["Akcja epistemiczna<br/>dopytanie / eskalacja"]
+
+  P --> A["Działanie a_t"]
+  A --> R["Reward r_t<br/>= r_task + \\lambda r_emo"]
+
+  R -. aktualizacja polityki .-> P
+  A --> X
+  Q -. nowe dane .-> X

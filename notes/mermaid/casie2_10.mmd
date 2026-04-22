@@ -1,0 +1,23 @@
+flowchart TD
+  CORE(["🧠 CASIE-2
+warstwa integracyjna"])
+  SOC["Kontekst społeczny
+historia dialogu · relacje · proxemika"]
+  CAU["Kauzalność
+SCM · kontrfaktyczne testy · debiasing"]
+  BEL["Belief state
+P(stan użytkownika | dane, kontekst)"]
+  UNC["Niepewność
+kalibracja · conformal prediction"]
+  SAFE["Polityka bezpieczeństwa
+abstencja · dopytywanie · nadzór człowieka"]
+
+  SOC --> CORE
+  CAU --> CORE
+  BEL --> CORE
+  UNC --> CORE
+  SAFE --> CORE
+
+  CORE --> OUT["Adekwatna, ostrożna reakcja systemu"]
+
+%% Diagram zapisany jako flowchart dla lepszej kompatybilności z Mermaid v10+ i osadzaniem w dokumentacji

@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epistemic Cartography — Diagramy Mermaid</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<style>
+  :root {
+    --teal:   #007A6E;
+    --amber:  #C8631A;
+    --purple: #6A4FB5;
+    --green:  #2A8A5A;
+    --red:    #C0303F;
+    --slate:  #5A7080;
+    --ink:    #1A2B3C;
+    --bg:     #FFFFFF;
+    --panel:  #F4F7FA;
+    --border: #D0DCE8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    border-bottom: 2px solid var(--teal);
+    padding-bottom: .5rem;
+    margin-bottom: .4rem;
+  }
+  .subtitle {
+    font-size: .85rem;
+    color: var(--slate);
+    margin-bottom: 2rem;
+    font-style: italic;
+  }
+  .diagram-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 2.5rem;
+    overflow: hidden;
+  }
+  .diagram-header {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: 1rem 1.25rem .75rem;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+  }
+  .diagram-num {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: #fff;
+    background: var(--teal);
+    padding: .15rem .5rem;
+    border-radius: 999px;
+  }
+  .diagram-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .diagram-type {
+    font-size: .75rem;
+    color: var(--slate);
+    font-family: 'Courier New', monospace;
+    margin-left: auto;
+    background: var(--panel);
+    padding: .1rem .45rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .diagram-desc {
+    font-size: .8rem;
+    color: var(--slate);
+    padding: .5rem 1.25rem .75rem;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    padding: .5rem 1.1rem;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--slate);
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+  }
+  .tab-btn.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+  }
+  .tab-btn:hover:not(.active) {
+    color: var(--ink);
+    background: var(--panel);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Preview pane */
+  .preview-pane {
+    padding: 1.5rem;
+    min-height: 120px;
+    background: #fff;
+    overflow-x: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .preview-pane .mermaid {
+    max-width: 100%;
+  }
+
+  /* Code pane */
+  .code-pane {
+    position: relative;
+    background: var(--panel);
+  }
+  pre {
+    padding: 1.25rem 1.5rem;
+    font-size: .78rem;
+    line-height: 1.65;
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .copy-btn {
+    position: absolute;
+    top: .6rem;
+    right: .8rem;
+    padding: .25rem .7rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--teal);
+    background: #fff;
+    border: 1px solid var(--teal);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .copy-btn:hover { background: var(--teal); color: #fff; }
+
+  /* color dots per diagram */
+  .dot-teal   { background: var(--teal); }
+  .dot-amber  { background: var(--amber); }
+  .dot-purple { background: var(--purple); }
+  .dot-green  { background: var(--green); }
+  .dot-red    { background: var(--red); }
+  .dot-slate  { background: var(--slate); }
+  .color-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<h1>Epistemic Cartography — Diagramy Mermaid</h1>
+<p class="subtitle">Kod źródłowy do osadzenia w dokumentacji, Notion, GitHub Markdown, Obsidian, draw.io i innych narzędziach obsługujących Mermaid v10+</p>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 1 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num">01</span>
+    <span class="diagram-title">System korelacyjny vs. architektura przyczynowo-kontekstowa</span>
+    <span class="diagram-type">flowchart LR</span>
+  </div>
+  <div class="diagram-desc">
+    Zestawienie dwóch architektur. Lewy subgraf pokazuje klasyczny pipeline korelacyjny podatny na fałszywe skróty kontekstowe. Prawy odwzorowuje architekturę opartą na belief state, modelu przyczynowym, pamięci kontekstowej i bramce epistemicznej.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev1')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code1')">Kod Mermaid</button>
+  </div>
+  <div id="prev1" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m1">%%{init: {'theme': 'base', 'themeVariables': {'primaryColor':'#EAF4F2','primaryTextColor':'#1A2B3C','primaryBorderColor':'#007A6E','lineColor':'#5A7080','secondaryColor':'#FFF3E8','tertiaryColor':'#F0ECFF'}}}%%
+flowchart LR
+
+  subgraph KOR["❌ System korelacyjny"]
+    direction LR
+    A["😐 Dane wejściowe
+(twarz + otoczenie)"] --> B["CNN / Transformer
+klasyfikator"]
+    B --> C["Etykieta emocji
+p = 0.81"]
+    A -. "fałszywy skrót
+kontekst → etykieta" .-> C
+  end
+
+  subgraph PRZY["✅ Architektura przyczynowo-kontekstowa"]
+    direction TB
+    D["🎤 Głos / prosodia"] --> H
+    E["👁 Mimika"] --> H
+    F["💬 Historia dialogu"] --> H
+    G["📍 Kontekst sytuacyjny
+i relacyjny"] --> H
+    N[("🗂 Pamięć kontekstowa")]
+    I[("Knowledge graph")]
+    J[["SCM / DBN / world model"]]
+    H(["🧠 Belief state
+P(emocja, intencja, potrzeba | dane)"])
+    N --> H
+    I <--> H
+    J <--> H
+    H --> K{{"Skalibrowana
+pewność ≥ θ?"}}
+    K -- TAK --> L["✅ Działanie / odpowiedź"]
+    K -- NIE --> M["❓ Dopytanie / abstencja / eskalacja"]
+  end      </div>
+    </div>
+  </div>
+  <div id="code1" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF4F2',
+  'primaryTextColor':   '#1A2B3C',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#FFF3E8',
+  'tertiaryColor':      '#F0ECFF'
+}}}%%
+flowchart LR
+
+  subgraph KOR["❌ System korelacyjny"]
+    direction LR
+    A["😐 Dane wejściowe
+(twarz + otoczenie)"] --> B["CNN / Transformer
+klasyfikator"]
+    B --> C["Etykieta emocji
+p = 0.81"]
+    A -. "fałszywy skrót
+kontekst → etykieta" .-> C
+  end
+
+  subgraph PRZY["✅ Architektura przyczynowo-kontekstowa"]
+    direction TB
+    D["🎤 Głos / prosodia"] --> H
+    E["👁 Mimika"] --> H
+    F["💬 Historia dialogu"] --> H
+    G["📍 Kontekst sytuacyjny
+i relacyjny"] --> H
+    N[("🗂 Pamięć kontekstowa")]
+    I[("Knowledge graph")]
+    J[["SCM / DBN / world model"]]
+    H(["🧠 Belief state
+P(emocja, intencja, potrzeba | dane)"])
+    N --> H
+    I <--> H
+    J <--> H
+    H --> K{{"Skalibrowana
+pewność ≥ θ?"}}
+    K -- TAK --> L["✅ Działanie / odpowiedź"]
+    K -- NIE --> M["❓ Dopytanie / abstencja / eskalacja"]
+  end</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 2 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num" style="background:var(--purple)">02</span>
+    <span class="diagram-title">Dynamic Bayesian Network (DBN) — dwie chwile czasowe</span>
+    <span class="diagram-type">flowchart TD</span>
+  </div>
+  <div class="diagram-desc">
+    Dwa przekroje czasowe t oraz t+1 z rozdzieleniem na zmienne ukryte i obserwowane. Diagram pokazuje, że emocja jest stanem latentnym aktualizowanym na podstawie sygnałów, kontekstu i przejść czasowych.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev2')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code2')">Kod Mermaid</button>
+  </div>
+  <div id="prev2" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m2">%%{init: {'theme': 'base', 'themeVariables': {'primaryColor':'#EDE8FF','primaryBorderColor':'#6A4FB5','lineColor':'#5A7080','secondaryColor':'#E8F5EE','tertiaryColor':'#FFF3E8'}}}%%
+flowchart LR
+
+  subgraph T["⏱ Chwila t"]
+    direction TB
+    Ct["Kontekstₜ"]
+    Et(("Emocjaₜ
+stan ukryty"))
+    St["Sygnałyₜ
+(audio / wideo / tekst)"]
+    Ot(["Obserwacjeₜ"])
+    Ct --> St
+    Ct --> Et
+    Et --> St
+    St --> Ot
+  end
+
+  subgraph T1["⏱ Chwila t+1"]
+    direction TB
+    Ct1["Kontekstₜ₊₁"]
+    Et1(("Emocjaₜ₊₁
+stan ukryty"))
+    St1["Sygnałyₜ₊₁"]
+    Ot1(["Obserwacjeₜ₊₁"])
+    Ct1 --> St1
+    Ct1 --> Et1
+    Et1 --> St1
+    St1 --> Ot1
+  end
+
+  Ct --> Ct1
+  Et -. "P(Eₜ₊₁ | Eₜ, Cₜ, aₜ)" .-> Et1
+  St -. "dynamika sygnału" .-> St1      </div>
+    </div>
+  </div>
+  <div id="code2" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EDE8FF',
+  'primaryBorderColor': '#6A4FB5',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#E8F5EE',
+  'tertiaryColor':      '#FFF3E8'
+}}}%%
+flowchart LR
+
+  subgraph T["⏱ Chwila t"]
+    direction TB
+    Ct["Kontekstₜ"]
+    Et(("Emocjaₜ
+stan ukryty"))
+    St["Sygnałyₜ
+(audio / wideo / tekst)"]
+    Ot(["Obserwacjeₜ"])
+    Ct --> St
+    Ct --> Et
+    Et --> St
+    St --> Ot
+  end
+
+  subgraph T1["⏱ Chwila t+1"]
+    direction TB
+    Ct1["Kontekstₜ₊₁"]
+    Et1(("Emocjaₜ₊₁
+stan ukryty"))
+    St1["Sygnałyₜ₊₁"]
+    Ot1(["Obserwacjeₜ₊₁"])
+    Ct1 --> St1
+    Ct1 --> Et1
+    Et1 --> St1
+    St1 --> Ot1
+  end
+
+  Ct --> Ct1
+  Et -. "P(Eₜ₊₁ | Eₜ, Cₜ, aₜ)" .-> Et1
+  St -. "dynamika sygnału" .-> St1</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 3 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num" style="background:var(--amber)">03</span>
+    <span class="diagram-title">World Models (Ha &amp; Schmidhuber) — model świata</span>
+    <span class="diagram-type">flowchart TD</span>
+  </div>
+  <div class="diagram-desc">
+    Architektura world model dostosowana do systemu afektywnego: kodowanie multimodalne, model dynamiki użytkownika i symulacja skutków możliwych reakcji przed wykonaniem działania.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev3')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code3')">Kod Mermaid</button>
+  </div>
+  <div id="prev3" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m3">%%{init: {'theme': 'base', 'themeVariables': {'primaryColor':'#FFF3E8','primaryBorderColor':'#C8631A','lineColor':'#5A7080','secondaryColor':'#EDE8FF','tertiaryColor':'#E8F5EE'}}}%%
+flowchart TD
+  IN["🎙 Wejście multimodalne
+(audio / wideo / tekst / kontekst)"] --> V
+  V["V — Encoder
+reprezentacja latentna zₜ"] --> M
+  M["M — Model świata
+P(zₜ₊₁, eₜ₊₁ | zₜ, aₜ, kontekst)"] --> SIM
+  SIM["📊 Symulacja kontrfaktyczna
+co się stanie, jeśli odpowiem X?"] --> C
+  C["C — Planner / Controller
+wybór reakcji minimalizującej ryzyko"] --> G
+  G{{"Czy przewidywany efekt
+jest bezpieczny i adekwatny?"}}
+  G -- TAK --> ACT["⚡ Reakcja systemu
+(dialog / ruch / wsparcie)"]
+  G -- NIE --> ASK["❓ Dopytaj / wstrzymaj działanie"]      </div>
+    </div>
+  </div>
+  <div id="code3" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#FFF3E8',
+  'primaryBorderColor': '#C8631A',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#E8F5EE'
+}}}%%
+flowchart TD
+  IN["🎙 Wejście multimodalne
+(audio / wideo / tekst / kontekst)"] --> V
+  V["V — Encoder
+reprezentacja latentna zₜ"] --> M
+  M["M — Model świata
+P(zₜ₊₁, eₜ₊₁ | zₜ, aₜ, kontekst)"] --> SIM
+  SIM["📊 Symulacja kontrfaktyczna
+co się stanie, jeśli odpowiem X?"] --> C
+  C["C — Planner / Controller
+wybór reakcji minimalizującej ryzyko"] --> G
+  G{{"Czy przewidywany efekt
+jest bezpieczny i adekwatny?"}}
+  G -- TAK --> ACT["⚡ Reakcja systemu
+(dialog / ruch / wsparcie)"]
+  G -- NIE --> ASK["❓ Dopytaj / wstrzymaj działanie"]</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 4 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num" style="background:var(--green)">04</span>
+    <span class="diagram-title">ECRP — Emotion-Context Reinforced Planner (cykl)</span>
+    <span class="diagram-type">flowchart LR</span>
+  </div>
+  <div class="diagram-desc">
+    Pętla percepcji–wnioskowania–planowania–działania z jawną bramką epistemiczną. Planner korzysta z kontekstu i nagrody zależnej od adekwatności emocjonalnej, a nie wyłącznie skuteczności zadaniowej.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev4')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code4')">Kod Mermaid</button>
+  </div>
+  <div id="prev4" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m4">%%{init: {'theme': 'base', 'themeVariables': {'primaryColor':'#E8F5EE','primaryBorderColor':'#2A8A5A','lineColor':'#5A7080','secondaryColor':'#EDE8FF','tertiaryColor':'#FFF3E8'}}}%%
+flowchart LR
+  OBS["🔍 Obserwacja
+multimodalna"] --> BEL
+  CM[("📚 Context memory")] --> BEL
+  BEL["🧠 Estymacja belief state
+P(emocja, kontekst | dane)"] --> G
+  G{{"Czy niepewność
+jest akceptowalna?"}}
+  G -- TAK --> PLAN["📋 Planner
+wybór reakcji w horyzoncie H"]
+  PLAN --> ACT["⚡ Działanie
+(dialog / ruch / wsparcie)"]
+  ACT --> REW["🏅 Ocena wyniku
+reward = adekwatność emocjonalna"]
+  REW -. "uczenie polityki" .-> PLAN
+  ACT --> OBS
+  G -- NIE --> ASK["❓ Dopytaj / eskaluj"]
+  ASK -. "nowe dane" .-> OBS      </div>
+    </div>
+  </div>
+  <div id="code4" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#E8F5EE',
+  'primaryBorderColor': '#2A8A5A',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8'
+}}}%%
+flowchart LR
+  OBS["🔍 Obserwacja
+multimodalna"] --> BEL
+  CM[("📚 Context memory")] --> BEL
+  BEL["🧠 Estymacja belief state
+P(emocja, kontekst | dane)"] --> G
+  G{{"Czy niepewność
+jest akceptowalna?"}}
+  G -- TAK --> PLAN["📋 Planner
+wybór reakcji w horyzoncie H"]
+  PLAN --> ACT["⚡ Działanie
+(dialog / ruch / wsparcie)"]
+  ACT --> REW["🏅 Ocena wyniku
+reward = adekwatność emocjonalna"]
+  REW -. "uczenie polityki" .-> PLAN
+  ACT --> OBS
+  G -- NIE --> ASK["❓ Dopytaj / eskaluj"]
+  ASK -. "nowe dane" .-> OBS</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 5 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num" style="background:var(--red)">05</span>
+    <span class="diagram-title">Architektura decyzyjna z epistemiczną pokorą</span>
+    <span class="diagram-type">flowchart TD</span>
+  </div>
+  <div class="diagram-desc">
+    Pełny potok decyzyjny: od wejścia multimodalnego przez fuzję, model przyczynowy i kalibrację niepewności aż do decyzji o działaniu, dopytaniu albo abstencji.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev5')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code5')">Kod Mermaid</button>
+  </div>
+  <div id="prev5" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m5">%%{init: {'theme': 'base', 'themeVariables': {'primaryColor':'#EAF0F8','primaryBorderColor':'#007A6E','lineColor':'#5A7080','secondaryColor':'#FFF3E8','tertiaryColor':'#EDE8FF'}}}%%
+flowchart TD
+  IN["🎙 Wejście multimodalne
+(audio · wideo · tekst · sytuacja)"] --> PF
+  PF["Percepcja i fuzja
+reprezentacja obserwacji"] --> BS
+  MEM[("🗂 Pamięć dialogu
+i model użytkownika")] --> BS
+  SCM[["🔗 Model przyczynowy
+SCM / DBN / world model"]] --> BS
+  BS["Belief state
+rozkład nad stanami użytkownika"] --> CAL
+  CAL["Kalibracja niepewności
+conformal / temperature / selective prediction"] --> DEC
+  DEC{{"Czy decyzja spełnia
+warunek bezpieczeństwa?"}}
+  DEC -- TAK --> PLAN["📋 Planner reakcji"]
+  PLAN --> ACT["⚡ Odpowiedź systemu"]
+  DEC -- NIE --> ASK["❓ Prośba o wyjaśnienie
+lub abstencja"]
+  ASK -. "nowe dane" .-> IN      </div>
+    </div>
+  </div>
+  <div id="code5" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#FFF3E8',
+  'tertiaryColor':      '#EDE8FF'
+}}}%%
+flowchart TD
+  IN["🎙 Wejście multimodalne
+(audio · wideo · tekst · sytuacja)"] --> PF
+  PF["Percepcja i fuzja
+reprezentacja obserwacji"] --> BS
+  MEM[("🗂 Pamięć dialogu
+i model użytkownika")] --> BS
+  SCM[["🔗 Model przyczynowy
+SCM / DBN / world model"]] --> BS
+  BS["Belief state
+rozkład nad stanami użytkownika"] --> CAL
+  CAL["Kalibracja niepewności
+conformal / temperature / selective prediction"] --> DEC
+  DEC{{"Czy decyzja spełnia
+warunek bezpieczeństwa?"}}
+  DEC -- TAK --> PLAN["📋 Planner reakcji"]
+  PLAN --> ACT["⚡ Odpowiedź systemu"]
+  DEC -- NIE --> ASK["❓ Prośba o wyjaśnienie
+lub abstencja"]
+  ASK -. "nowe dane" .-> IN</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- DIAGRAM 6 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-header">
+    <span class="diagram-num" style="background:var(--slate)">06</span>
+    <span class="diagram-title">CASIE-2 — pięć filarów integracji</span>
+    <span class="diagram-type">flowchart TD</span>
+  </div>
+  <div class="diagram-desc">
+    Diagram integrujący pięć filarów architektury CASIE-2 w bardziej przenośnym formacie <code>flowchart</code>, bez zależności od eksperymentalnego typu <code>mindmap</code>.
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'prev6')">Podgląd</button>
+    <button class="tab-btn" onclick="switchTab(this, 'code6')">Kod Mermaid</button>
+  </div>
+  <div id="prev6" class="tab-content active">
+    <div class="preview-pane">
+      <div class="mermaid" id="m6">flowchart TD
+  CORE(["🧠 CASIE-2
+warstwa integracyjna"])
+  SOC["Kontekst społeczny
+historia dialogu · relacje · proxemika"]
+  CAU["Kauzalność
+SCM · kontrfaktyczne testy · debiasing"]
+  BEL["Belief state
+P(stan użytkownika | dane, kontekst)"]
+  UNC["Niepewność
+kalibracja · conformal prediction"]
+  SAFE["Polityka bezpieczeństwa
+abstencja · dopytywanie · nadzór człowieka"]
+
+  SOC --> CORE
+  CAU --> CORE
+  BEL --> CORE
+  UNC --> CORE
+  SAFE --> CORE
+
+  CORE --> OUT["Adekwatna, ostrożna reakcja systemu"]      </div>
+    </div>
+  </div>
+  <div id="code6" class="tab-content">
+    <div class="code-pane">
+      <button class="copy-btn" onclick="copyCode(this)">Kopiuj</button>
+      <pre>flowchart TD
+  CORE(["🧠 CASIE-2
+warstwa integracyjna"])
+  SOC["Kontekst społeczny
+historia dialogu · relacje · proxemika"]
+  CAU["Kauzalność
+SCM · kontrfaktyczne testy · debiasing"]
+  BEL["Belief state
+P(stan użytkownika | dane, kontekst)"]
+  UNC["Niepewność
+kalibracja · conformal prediction"]
+  SAFE["Polityka bezpieczeństwa
+abstencja · dopytywanie · nadzór człowieka"]
+
+  SOC --> CORE
+  CAU --> CORE
+  BEL --> CORE
+  UNC --> CORE
+  SAFE --> CORE
+
+  CORE --> OUT["Adekwatna, ostrożna reakcja systemu"]
+
+%% Diagram zapisany jako flowchart dla lepszej kompatybilności z Mermaid v10+ i osadzaniem w dokumentacji</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'base',
+  securityLevel: 'loose',
+  fontFamily: 'Segoe UI, system-ui, sans-serif',
+});
+
+function switchTab(btn, contentId) {
+  const section = btn.closest('.diagram-section');
+  section.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  section.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(contentId).classList.add('active');
+}
+
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Skopiowano';
+    setTimeout(() => btn.textContent = orig, 1800);
+  });
+}
+</script>
+</body>
+</html>

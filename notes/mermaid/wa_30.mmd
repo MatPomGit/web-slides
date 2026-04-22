@@ -1,0 +1,18 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#F5F1EA',
+  'primaryBorderColor': '#5E6A75',
+  'lineColor':          '#4B5563',
+  'secondaryColor':     '#EEF3F8',
+  'tertiaryColor':      '#F2F5F2',
+  'fontSize':           '20px'
+}}}%%
+flowchart LR
+  IN["Wejście multimodalne"] --> ENC["Encoder<br/>stan latentny z_t"]
+  ENC --> WM["Model świata<br/>przewidywanie następstw"]
+  WM --> PLAN["Planowanie<br/>wybór działania"]
+  PLAN --> SAFE{"Ocena<br/>bezpieczeństwo i cel"}
+  SAFE -- Tak --> OUT["Wyjście systemu"]
+  SAFE -- Nie --> HOLD["Wstrzymanie / dopytanie"]
+
+  OUT -. sprzężenie zwrotne .-> ENC
+  HOLD -. sprzężenie zwrotne .-> ENC

@@ -1,0 +1,20 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  P["Percepcja ucieleśniona"] --> B["Stan przekonań"]
+  M[("Pamięć i model użytkownika")] --> B
+  C["Kauzalność / world model"] --> B
+  B --> U["Niepewność + kalibracja"]
+  U --> G{"Bramka epistemiczna"}
+  G -- Działaj --> E["Planner ECRP"]
+  G -- Dopytaj / eskaluj --> Q["Akcja epistemiczna"]
+  E --> X["Wykonanie<br/>(mowa · gest · ruch)"]
+  X --> S["Bezpieczeństwo wykonania"]
+  S -. feedback .-> P
+  Q -. nowe dane .-> P

@@ -1,0 +1,30 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  IN["Percepcja ucieleśniona<br/>(wizja · audio · mowa · gest · proksemika · otoczenie)"] --> BEL
+
+  MEM[("Pamięć interakcji<br/>i model użytkownika")] --> BEL
+  CAU["Warstwa kauzalna / world model<br/>(SCM · dynamika · kontrfakty)"] --> BEL
+
+  BEL["Probabilistyczny stan przekonań<br/>P(stan użytkownika, intencja, emocja, ryzyko | dane, kontekst)"] --> UNC
+
+  UNC["Kalibracja niepewności<br/>i korekta biasu"] --> G
+
+  G{"Bramka epistemiczna<br/>czy decyzja jest dostatecznie pewna i bezpieczna?"}
+
+  G -- Tak --> PLAN["Planner społeczno-zorientowany (ECRP)<br/>cel zadaniowy + adekwatność emocjonalna + komfort człowieka"]
+  G -- Nie --> ASK["Akcja epistemiczna<br/>dopytanie / dodatkowa obserwacja / eskalacja"]
+
+  PLAN --> EXEC["Wykonanie multimodalne<br/>(mowa · mimika · gest · ruch · manipulacja)"]
+  EXEC --> SAFE["Nadzór bezpieczeństwa<br/>(kolizje · siła · strefy ochronne · human override)"]
+
+  SAFE --> OUT["Zachowanie robota humanoidalnego"]
+
+  OUT -. sprzężenie zwrotne .-> IN
+  ASK -. nowe dane .-> IN

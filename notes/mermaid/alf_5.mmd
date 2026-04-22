@@ -1,0 +1,24 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor':       '#EAF0F8',
+  'primaryBorderColor': '#007A6E',
+  'lineColor':          '#5A7080',
+  'secondaryColor':     '#EDE8FF',
+  'tertiaryColor':      '#FFF3E8',
+  'fontSize':           '18px'
+}}}%%
+flowchart LR
+  X["Percepcja<br/>x_t"] --> B
+  M[("Pamięć<br/>m_t")] --> B
+  C["World model<br/>p(s_{t+1}\\mid s_t,u_t,c_t)"] --> B
+
+  B["Belief state<br/>b_t=P(s_t\\mid x_t,m_t,c_t)"] --> U
+  U["Kalibracja<br/>u_t=\\mathcal{U}(\\mathrm{Calib}(b_t))"] --> G
+
+  G{"u_t\\leq\\theta \\land \\rho_t\\leq\\tau ?"}
+  G -- Tak --> P["ECRP<br/>u_t^*=\\arg\\max J(u\\mid b_t)"]
+  G -- Nie --> Q["Dopytaj / eskaluj"]
+
+  P --> E["Wykonanie<br/>y_t=\\Pi(u_t^*)"]
+  E --> S["Safety shield"]
+  S -. feedback .-> X
+  Q -. nowe dane .-> X
