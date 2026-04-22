@@ -13,7 +13,6 @@ import argparse
 import collections
 import dataclasses
 import importlib
-import importlib.util
 import logging
 import signal
 import time
@@ -23,48 +22,58 @@ import cv2
 import mediapipe as mp
 
 
-def resolve_mediapipe_solutions_module():
-    """Zwraca moduł `solutions` MediaPipe niezależnie od struktury pakietu."""
-    # Najpierw próbujemy standardowej ścieżki przez `mediapipe.solutions`.
-    solutions = getattr(mp, "solutions", None)
-    if solutions is not None:
-        return solutions
-
-    # Następnie wyszukujemy alternatywne lokalizacje spotykane w różnych buildach.
-    candidate_modules = (
-        "mediapipe.solutions",
-        "mediapipe.python.solutions",
-    )
-    for module_name in candidate_modules:
-        # Niektóre wydania `mediapipe` nie mają pakietu pośredniego `mediapipe.python`.
-        # W takiej sytuacji `find_spec("mediapipe.python.solutions")` może rzucić
-        # `ModuleNotFoundError` zamiast zwrócić `None`, więc obsługujemy ten przypadek
-        # i przechodzimy do kolejnego kandydata.
+def _import_first_available_module(module_names: Tuple[str, ...]):
+    """Importuje pierwszy dostępny moduł z listy kandydatów."""
+    for module_name in module_names:
         try:
-            module_spec = importlib.util.find_spec(module_name)
+            return importlib.import_module(module_name)
         except ModuleNotFoundError:
             continue
-
-        # Sprawdzamy istnienie modułu przed importem, aby uniknąć wyjątków.
-        if module_spec is None:
-            continue
-        return importlib.import_module(module_name)
-
-    raise RuntimeError(
-        "Nie znaleziono modułu MediaPipe `solutions`. "
-        "Sprawdź instalację pakietu `mediapipe`."
-    )
+    return None
 
 
 def resolve_mediapipe_hands():
     """Zwraca moduł MediaPipe Hands zgodny z różnymi wariantami instalacji."""
-    # Bazujemy na wspólnej funkcji rozpoznającej poprawną lokalizację `solutions`.
-    mp_solutions = resolve_mediapipe_solutions_module()
-    if not hasattr(mp_solutions, "hands"):
-        raise RuntimeError(
-            "Wykryta instalacja `mediapipe` nie udostępnia `hands` w `solutions`."
+    # W pierwszej kolejności próbujemy klasycznej ścieżki API.
+    solutions = getattr(mp, "solutions", None)
+    if solutions is not None and hasattr(solutions, "hands"):
+        return solutions.hands
+
+    # Fallback dla buildów, gdzie `solutions` nie jest wystawione na top-level.
+    hands_module = _import_first_available_module(
+        (
+            "mediapipe.python.solutions.hands",
+            "mediapipe.solutions.hands",
         )
-    return mp_solutions.hands
+    )
+    if hands_module is None:
+        raise RuntimeError(
+            "Nie znaleziono modułu MediaPipe Hands (`solutions.hands`). "
+            "Sprawdź instalację pakietu `mediapipe`."
+        )
+    return hands_module
+
+
+def resolve_mediapipe_drawing_utils_module():
+    """Zwraca moduł `drawing_utils` zgodny z różnymi wariantami MediaPipe."""
+    # Klasyczna ścieżka przez top-level `mediapipe.solutions`.
+    solutions = getattr(mp, "solutions", None)
+    if solutions is not None and hasattr(solutions, "drawing_utils"):
+        return solutions.drawing_utils
+
+    # Fallback dla buildów, które trzymają `drawing_utils` pod `mediapipe.python`.
+    drawing_utils_module = _import_first_available_module(
+        (
+            "mediapipe.python.solutions.drawing_utils",
+            "mediapipe.solutions.drawing_utils",
+        )
+    )
+    if drawing_utils_module is None:
+        raise RuntimeError(
+            "Nie znaleziono modułu MediaPipe `drawing_utils`. "
+            "Sprawdź instalację pakietu `mediapipe`."
+        )
+    return drawing_utils_module
 
 
 class KeyboardBackend:
@@ -271,12 +280,7 @@ class SlideWaveApp:
     @staticmethod
     def _resolve_drawing_utils():
         """Zwraca narzędzia do rysowania MediaPipe kompatybilne z bieżącą instalacją."""
-        solutions = resolve_mediapipe_solutions_module()
-        if hasattr(solutions, "drawing_utils"):
-            return solutions.drawing_utils
-        raise RuntimeError(
-            "Wykryta instalacja `mediapipe` nie udostępnia `drawing_utils` w `solutions`."
-        )
+        return resolve_mediapipe_drawing_utils_module()
 
     @staticmethod
     def _make_keyboard_backend(name: str) -> KeyboardBackend:
