@@ -13,6 +13,8 @@
       previewToggleBtn: document.getElementById("previewToggleBtn"),
       keyboardModeBtn: document.getElementById("keyboardModeBtn"),
       detectionToggleBtn: document.getElementById("detectionToggleBtn"),
+      hudToggleBtn: document.getElementById("hudToggleBtn"),
+      hudRestoreBtn: document.getElementById("hudRestoreBtn"),
       video: document.getElementById("camera"),
       overlay: document.getElementById("overlay"),
       flash: document.getElementById("flash"),
@@ -108,6 +110,8 @@
         metricTriggersPerMin: "span",
         metricConfidenceHistogram: "span",
         exportMetricsBtn: "button",
+        hudToggleBtn: "button",
+        hudRestoreBtn: "button",
         frameSkip: "input",
         cooldownMs: "input",
         historyWindowMs: "input",
@@ -196,6 +200,8 @@
     let keyboardOnlyMode = false;
     let detectionDisabled = loadDetectionDisabled();
     let previewVisible = true;
+    let hudVisible = true;
+    let latestMotionMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
     const inFlightFrames = new Map();
     const performanceMetrics = createPerformanceMetrics();
 
@@ -390,7 +396,12 @@
     function drawLandmarks(landmarks) {
       if (isOffscreenMode || !ctx) return;
       drawActiveZone();
-      if (!landmarks || !landmarks.length) return;
+      if (!landmarks || !landmarks.length) {
+        if (debugVisible) {
+          drawDebugMetricsOverlay(latestMotionMetrics);
+        }
+        return;
+      }
       ctx.save();
       ctx.fillStyle = "rgba(61, 220, 151, 0.95)";
       for (const p of landmarks) {
@@ -399,6 +410,36 @@
         ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
         ctx.fill();
       }
+      if (debugVisible) {
+        drawDebugMetricsOverlay(latestMotionMetrics);
+      }
+      ctx.restore();
+    }
+
+    function drawDebugMetricsOverlay(metrics) {
+      // W trybie debug rysujemy na obrazie aktualne parametry ruchu, aby szybciej stroić detekcję.
+      if (isOffscreenMode || !ctx || !metrics) return;
+      const panelX = 10;
+      const panelY = 10;
+      const panelWidth = 180;
+      const panelHeight = 74;
+      const deltaX = Number(metrics.deltaX || 0).toFixed(3);
+      const deltaY = Number(metrics.deltaY || 0).toFixed(3);
+      const presence = Number(metrics.presence || 0).toFixed(3);
+      const direction = metrics.direction || "brak";
+
+      ctx.save();
+      ctx.fillStyle = "rgba(6, 10, 14, 0.74)";
+      ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+      ctx.strokeStyle = "rgba(127, 214, 255, 0.6)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+      ctx.fillStyle = "rgba(230, 236, 245, 0.96)";
+      ctx.font = "12px Inter, system-ui, sans-serif";
+      ctx.fillText(`ΔX: ${deltaX}`, panelX + 8, panelY + 18);
+      ctx.fillText(`ΔY: ${deltaY}`, panelX + 8, panelY + 34);
+      ctx.fillText(`Dir: ${direction}`, panelX + 8, panelY + 50);
+      ctx.fillText(`Conf: ${presence}`, panelX + 8, panelY + 66);
       ctx.restore();
     }
 
@@ -585,6 +626,20 @@
       markAction(previewVisible ? "podgląd kamery widoczny" : "podgląd kamery ukryty", "value-muted");
     }
 
+    function setHudVisibility(visible) {
+      // Pozwalamy ukryć cały panel HUD i zostawić tylko mały przycisk przywracania.
+      hudVisible = visible;
+      ui.hud.classList.toggle("hidden", !visible);
+      ui.hudRestoreBtn.classList.toggle("visible", !visible);
+      ui.hudToggleBtn.textContent = visible ? "Ukryj panel" : "Pokaż panel";
+    }
+
+    function toggleHudVisibility() {
+      // Ten sam handler obsługuje ukrycie panelu i jego ponowne wyświetlenie.
+      setHudVisibility(!hudVisible);
+      markAction(hudVisible ? "panel sterowania widoczny" : "panel sterowania ukryty", "value-muted");
+    }
+
     function clearLocalGestureConfiguration() {
       // Czyścimy całą lokalną konfigurację związaną z modułem gestów i wracamy do domyślnych wartości.
       localStorage.removeItem(CONFIG_KEY);
@@ -648,6 +703,14 @@
     function toggleDebug() {
       debugVisible = !debugVisible;
       ui.debugPanel.classList.toggle("visible", debugVisible);
+      syncDebugModeToRenderer();
+      if (!isOffscreenMode) drawLandmarks(null);
+    }
+
+    function syncDebugModeToRenderer() {
+      // Synchronizujemy flagę debug z workerem, żeby overlay działał także w trybie OffscreenCanvas.
+      if (!worker) return;
+      worker.postMessage({ type: "setDebug", enabled: debugVisible });
     }
 
     function toggleFullscreen() {
@@ -692,6 +755,7 @@
           setText(ui.workerStatus, "gotowy", "value-ok");
           announceStatus("Worker detekcji jest gotowy.");
           syncConfigToWorker();
+          syncDebugModeToRenderer();
           if (isOffscreenMode && offscreen) {
             worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
             offscreen = null;
@@ -700,6 +764,12 @@
           if (msg.workerStatus) setText(ui.workerStatus, msg.workerStatus.text, msg.workerStatus.className);
           if (msg.handStatus) setText(ui.handStatus, msg.handStatus.text, msg.handStatus.className);
           if (msg.metrics) {
+            latestMotionMetrics = {
+              deltaX: Number(msg.metrics.deltaX || 0),
+              deltaY: Number(msg.metrics.deltaY || 0),
+              direction: msg.metrics.direction || "brak",
+              presence: Number(msg.metrics.presence || 0)
+            };
             ui.metricDeltaX.textContent = Number(msg.metrics.deltaX || 0).toFixed(3);
             ui.metricDeltaY.textContent = Number(msg.metrics.deltaY || 0).toFixed(3);
             ui.metricDirection.textContent = msg.metrics.direction || "brak";
@@ -973,6 +1043,8 @@
     bindSafeClick(ui.detectionToggleBtn, () => {
       setDetectionDisabled(!detectionDisabled);
     });
+    bindSafeClick(ui.hudToggleBtn, toggleHudVisibility);
+    bindSafeClick(ui.hudRestoreBtn, toggleHudVisibility);
     bindSafeClick(ui.testPrevBtn, () => {
       deck.prev();
       markAction("test: poprzedni slajd");
@@ -1016,6 +1088,7 @@
     setText(ui.handStatus, "brak", "value-muted");
     drawActiveZone();
     setPreviewVisibility(true);
+    setHudVisibility(true);
     if (detectionDisabled) {
       setKeyboardOnlyMode(true);
       ui.startBtn.disabled = true;
