@@ -39,6 +39,17 @@ def resolve_mediapipe_hands():
     if solutions is not None and hasattr(solutions, "hands"):
         return solutions.hands
 
+    # Niektóre buildy udostępniają tylko pakiet `solutions` (bez bezpośredniego
+    # importu podmodułu `hands`). Wtedy pobieramy atrybut z pakietu nadrzędnego.
+    solutions_module = _import_first_available_module(
+        (
+            "mediapipe.python.solutions",
+            "mediapipe.solutions",
+        )
+    )
+    if solutions_module is not None and hasattr(solutions_module, "hands"):
+        return solutions_module.hands
+
     # Fallback dla buildów, gdzie `solutions` nie jest wystawione na top-level.
     hands_module = _import_first_available_module(
         (
@@ -49,7 +60,8 @@ def resolve_mediapipe_hands():
     if hands_module is None:
         raise RuntimeError(
             "Nie znaleziono modułu MediaPipe Hands (`solutions.hands`). "
-            "Sprawdź instalację pakietu `mediapipe`."
+            "Sprawdź instalację pakietu `mediapipe` oraz czy dostępny jest "
+            "wariant z modułem `solutions`."
         )
     return hands_module
 
@@ -60,6 +72,17 @@ def resolve_mediapipe_drawing_utils_module():
     solutions = getattr(mp, "solutions", None)
     if solutions is not None and hasattr(solutions, "drawing_utils"):
         return solutions.drawing_utils
+
+    # Analogiczny fallback jak dla `hands`: najpierw próbujemy pakietu
+    # nadrzędnego `solutions`, który może eksportować `drawing_utils`.
+    solutions_module = _import_first_available_module(
+        (
+            "mediapipe.python.solutions",
+            "mediapipe.solutions",
+        )
+    )
+    if solutions_module is not None and hasattr(solutions_module, "drawing_utils"):
+        return solutions_module.drawing_utils
 
     # Fallback dla buildów, które trzymają `drawing_utils` pod `mediapipe.python`.
     drawing_utils_module = _import_first_available_module(
