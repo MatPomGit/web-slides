@@ -55,6 +55,103 @@
       zoneYMax: document.getElementById("zoneYMax")
     };
 
+    function createNoopElement(tagName = "div") {
+      // Tworzymy odłączony element DOM jako bezpieczny fallback dla opcjonalnych kontrolek UI.
+      return document.createElement(tagName);
+    }
+
+    function assertUiElements(uiRegistry) {
+      // Walidujemy kompletność krytycznych elementów UI, aby wcześnie wykryć regresje w HTML.
+      const REQUIRED_UI_KEYS = [
+        "hud",
+        "cameraStatus",
+        "workerStatus",
+        "handStatus",
+        "lastAction",
+        "modeStatus",
+        "inputModeStatus",
+        "startBtn",
+        "toggleBtn",
+        "prevBtn",
+        "nextBtn",
+        "previewToggleBtn",
+        "keyboardModeBtn",
+        "detectionToggleBtn",
+        "video",
+        "overlay",
+        "flash",
+        "cameraPlaceholder",
+        "bootOverlay",
+        "bootStartBtn"
+      ];
+
+      const OPTIONAL_UI_FALLBACK_TAGS = {
+        debugPanel: "aside",
+        saveConfigBtn: "button",
+        resetConfigBtn: "button",
+        testPrevBtn: "button",
+        testNextBtn: "button",
+        closeDebugBtn: "button",
+        bootDismissBtn: "button",
+        bootTroubleshootingBtn: "button",
+        bootTroubleshooting: "div",
+        bootError: "div",
+        ariaAnnouncements: "div",
+        metricDeltaX: "span",
+        metricDeltaY: "span",
+        metricDirection: "span",
+        metricPresence: "span",
+        metricInputFps: "span",
+        metricDetectionFps: "span",
+        metricLatencyAvg: "span",
+        metricDroppedFrames: "span",
+        metricTriggersPerMin: "span",
+        metricConfidenceHistogram: "span",
+        exportMetricsBtn: "button",
+        frameSkip: "input",
+        cooldownMs: "input",
+        historyWindowMs: "input",
+        minDeltaXRatio: "input",
+        maxDeltaYRatio: "input",
+        readyHoldMs: "input",
+        openPalmMinExtendedFingers: "input",
+        minPalmWidthRatio: "input",
+        zoneXMin: "input",
+        zoneXMax: "input",
+        zoneYMin: "input",
+        zoneYMax: "input"
+      };
+
+      const missingRequired = REQUIRED_UI_KEYS.filter((key) => !uiRegistry[key]);
+      if (missingRequired.length) {
+        console.error(
+          `[UI BOOT] Brak wymaganych elementów (${missingRequired.length}): ${missingRequired.join(", ")}. ` +
+          "Przerywam inicjalizację aplikacji."
+        );
+        return false;
+      }
+
+      const missingOptional = [];
+      for (const [key, tagName] of Object.entries(OPTIONAL_UI_FALLBACK_TAGS)) {
+        if (!uiRegistry[key]) {
+          uiRegistry[key] = createNoopElement(tagName);
+          missingOptional.push(key);
+        }
+      }
+      if (missingOptional.length) {
+        console.warn(
+          `[UI BOOT] Brak opcjonalnych elementów (${missingOptional.length}): ${missingOptional.join(", ")}. ` +
+          "Włączono fallback/no-op."
+        );
+      }
+
+      return true;
+    }
+
+    if (!assertUiElements(ui)) {
+      throw new Error("UI validation failed: missing required DOM nodes.");
+    }
+
     const deck = new Reveal({
       hash: true,
       controls: true,
