@@ -20,6 +20,8 @@ let readySince = null;
 let xHistory = [];
 let overlayCanvas = null;
 let overlayCtx = null;
+let debugEnabled = false;
+let latestMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
 
 function postStatus(handText, handClass, metrics = {}, landmarks = null) {
   self.postMessage({
@@ -132,7 +134,12 @@ function drawActiveZone() {
 function drawLandmarks(landmarks) {
   if (!overlayCtx || !overlayCanvas) return;
   drawActiveZone();
-  if (!landmarks || !landmarks.length) return;
+  if (!landmarks || !landmarks.length) {
+    if (debugEnabled) {
+      drawDebugMetricsOverlay(latestMetrics);
+    }
+    return;
+  }
   overlayCtx.save();
   overlayCtx.fillStyle = "rgba(61, 220, 151, 0.95)";
   for (const p of landmarks) {
@@ -142,6 +149,36 @@ function drawLandmarks(landmarks) {
     overlayCtx.arc(x, y, 3, 0, Math.PI * 2);
     overlayCtx.fill();
   }
+  if (debugEnabled) {
+    drawDebugMetricsOverlay(latestMetrics);
+  }
+  overlayCtx.restore();
+}
+
+function drawDebugMetricsOverlay(metrics) {
+  // W trybie debug nanosimy podsumowanie ruchu bezpośrednio na warstwę podglądu.
+  if (!overlayCtx || !overlayCanvas || !metrics) return;
+  const panelX = 10;
+  const panelY = 10;
+  const panelWidth = 180;
+  const panelHeight = 74;
+  const deltaX = Number(metrics.deltaX || 0).toFixed(3);
+  const deltaY = Number(metrics.deltaY || 0).toFixed(3);
+  const direction = metrics.direction || "brak";
+  const presence = Number(metrics.presence || 0).toFixed(3);
+
+  overlayCtx.save();
+  overlayCtx.fillStyle = "rgba(6, 10, 14, 0.74)";
+  overlayCtx.fillRect(panelX, panelY, panelWidth, panelHeight);
+  overlayCtx.strokeStyle = "rgba(127, 214, 255, 0.6)";
+  overlayCtx.lineWidth = 1;
+  overlayCtx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+  overlayCtx.fillStyle = "rgba(230, 236, 245, 0.96)";
+  overlayCtx.font = "12px Inter, system-ui, sans-serif";
+  overlayCtx.fillText(`ΔX: ${deltaX}`, panelX + 8, panelY + 18);
+  overlayCtx.fillText(`ΔY: ${deltaY}`, panelX + 8, panelY + 34);
+  overlayCtx.fillText(`Dir: ${direction}`, panelX + 8, panelY + 50);
+  overlayCtx.fillText(`Conf: ${presence}`, panelX + 8, panelY + 66);
   overlayCtx.restore();
 }
 
@@ -152,6 +189,7 @@ function processGesture(landmarks, now, presence = 1) {
 
   if (!openPalm || !inZone) {
     resetTracking();
+    latestMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence };
     postStatus(openPalm ? "poza strefą" : "dłoń niegotowa", "value-warn", {
       deltaX: 0,
       deltaY: 0,
@@ -163,6 +201,7 @@ function processGesture(landmarks, now, presence = 1) {
 
   if (readySince === null) readySince = now;
   if (now - readySince < config.readyHoldMs) {
+    latestMetrics = { deltaX: 0, deltaY: 0, direction: "czekanie", presence };
     postStatus("gotowa", "value-ok", {
       deltaX: 0,
       deltaY: 0,
@@ -176,6 +215,7 @@ function processGesture(landmarks, now, presence = 1) {
   xHistory = xHistory.filter(p => now - p.t <= config.historyWindowMs);
 
   if (xHistory.length < 4) {
+    latestMetrics = { deltaX: 0, deltaY: 0, direction: "zbieranie", presence };
     postStatus("gotowa", "value-ok", {
       deltaX: 0,
       deltaY: 0,
@@ -193,6 +233,7 @@ function processGesture(landmarks, now, presence = 1) {
   const last = xHistory[xHistory.length - 1];
   const diff = last.x - first.x;
   const direction = diff > 0.02 ? "prawo" : diff < -0.02 ? "lewo" : "brak";
+  latestMetrics = { deltaX, deltaY, direction, presence };
 
   postStatus("gotowa", "value-ok", { deltaX, deltaY, direction, presence }, landmarks);
 
@@ -216,6 +257,9 @@ self.addEventListener("message", async (event) => {
       overlayCanvas = msg.canvas;
       overlayCtx = overlayCanvas.getContext("2d");
       drawActiveZone();
+    } else if (msg.type === "setDebug") {
+      debugEnabled = !!msg.enabled;
+      drawLandmarks(null);
     } else if (msg.type === "setConfig") {
       config = {
         ...structuredClone(DEFAULT_CONFIG),
@@ -246,6 +290,7 @@ self.addEventListener("message", async (event) => {
         self.postMessage({ type: "processed", frameId: msg.frameId, landmarks });
       } else {
         resetTracking();
+        latestMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
         drawActiveZone();
         postStatus("brak", "value-muted", {
           deltaX: 0,

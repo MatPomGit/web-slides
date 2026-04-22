@@ -46,6 +46,9 @@
       backdrop-filter: blur(8px);
       pointer-events: auto;
     }
+    #hud.hidden {
+      display: none;
+    }
 
     #hud h1 {
       margin: 0 0 8px 0;
@@ -153,6 +156,17 @@
       font-size: 12px;
       color: var(--muted);
       line-height: 1.35;
+    }
+
+    #hudRestoreBtn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 39;
+      display: none;
+    }
+    #hudRestoreBtn.visible {
+      display: block;
     }
 
     .small {
