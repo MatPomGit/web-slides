@@ -786,7 +786,8 @@
         resetWorkerState();
       };
 
-      worker = new Worker("./gesture-worker.js", { type: "module" });
+      // Uruchamiamy klasycznego workera, aby móc niezawodnie używać importScripts jako fallback dla CDN-ów.
+      worker = new Worker("./gesture-worker.js");
 
       worker.addEventListener("message", (event) => {
         const msg = event.data || {};
