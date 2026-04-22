@@ -1,0 +1,5 @@
+# Zależności Pythona dla wersji desktop (odpowiednik desktop/environment.yml)
+opencv-python
+pyautogui
+pynput
+mediapipe
