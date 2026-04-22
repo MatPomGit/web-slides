@@ -137,6 +137,24 @@
 
     button:hover { background: rgba(255,255,255,0.14); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid #7fd6ff;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 3px rgba(127, 214, 255, 0.28);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     #hud.camera-hidden #cameraWrap {
       display: none;
@@ -250,13 +268,26 @@
 
     #bootActions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
       margin-top: 16px;
+    }
+
+    #bootTroubleshooting {
+      margin-top: 12px;
+      display: none;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      padding: 10px;
+      color: #d9dfeb;
+      font-size: 13px;
+      line-height: 1.4;
+      background: rgba(255,255,255,0.04);
     }
   </style>
 </head>
 <body>
+  <div id="ariaAnnouncements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <div class="reveal">
     <div class="slides">
       <section
@@ -277,6 +308,7 @@
     <div class="row"><span>Detekcja dłoni</span><span id="handStatus" class="value-muted">brak</span></div>
     <div class="row"><span>Ostatnia akcja</span><span id="lastAction" class="value-muted">brak</span></div>
     <div class="row"><span>Tryb</span><span id="modeStatus" class="value-warn">pauza</span></div>
+    <div class="row"><span>Sterowanie</span><span id="inputModeStatus" class="value-ok">gesty + klawiatura</span></div>
 
     <div id="cameraWrap">
       <video id="camera" playsinline muted autoplay></video>
@@ -285,16 +317,17 @@
     </div>
 
     <div id="controls">
-      <button id="startBtn">Uruchom kamerę i detekcję</button>
-      <button id="toggleBtn" disabled>Wznów detekcję</button>
-      <button id="prevBtn">◀ Poprzedni</button>
-      <button id="nextBtn">Następny ▶</button>
-      <button id="previewToggleBtn">Ukryj podgląd</button>
+      <button id="startBtn" tabindex="1">Uruchom kamerę i detekcję</button>
+      <button id="toggleBtn" tabindex="2" disabled>Wznów detekcję</button>
+      <button id="prevBtn" tabindex="3">◀ Poprzedni</button>
+      <button id="nextBtn" tabindex="4">Następny ▶</button>
+      <button id="previewToggleBtn" tabindex="5">Ukryj podgląd</button>
+      <button id="keyboardModeBtn" tabindex="6">Tryb keyboard-only: OFF</button>
     </div>
 
     <div id="help">
       Gest: wyraźne machnięcie otwartą dłonią w prawo = następny slajd, w lewo = poprzedni slajd.<br />
-      Klawisze: <strong>←/→</strong> = slajdy, <strong>d</strong> = debug/config, <strong>f</strong> = fullscreen, <strong>h</strong> = podgląd.<br />
+      Klawisze: <strong>←/→</strong> = slajdy, <strong>d</strong> = debug/config, <strong>f</strong> = fullscreen, <strong>h</strong> = podgląd, <strong>k</strong> = keyboard-only.<br />
       <span class="small">Wersja worker: detekcja działa poza głównym wątkiem UI.</span>
     </div>
   </aside>
@@ -345,8 +378,15 @@
       <p>Jeśli kamera nie wystartuje, zobaczysz dokładny komunikat błędu.</p>
       <div id="bootError"></div>
       <div id="bootActions">
-        <button id="bootStartBtn">Uruchom kamerę i detekcję</button>
-        <button id="bootDismissBtn">Uruchom bez kamery</button>
+        <button id="bootStartBtn">Kamera ON</button>
+        <button id="bootDismissBtn">Kamera OFF</button>
+        <button id="bootTroubleshootingBtn">Troubleshooting</button>
+      </div>
+      <div id="bootTroubleshooting">
+        1) Sprawdź, czy strona działa po HTTPS lub localhost.<br />
+        2) Zweryfikuj uprawnienia kamery w przeglądarce i systemie.<br />
+        3) Zamknij inne aplikacje, które mogą blokować kamerę.<br />
+        4) Jeśli problem trwa, uruchom prezentację w trybie keyboard-only.
       </div>
     </div>
   </div>
@@ -362,11 +402,13 @@
       handStatus: document.getElementById("handStatus"),
       lastAction: document.getElementById("lastAction"),
       modeStatus: document.getElementById("modeStatus"),
+      inputModeStatus: document.getElementById("inputModeStatus"),
       startBtn: document.getElementById("startBtn"),
       toggleBtn: document.getElementById("toggleBtn"),
       prevBtn: document.getElementById("prevBtn"),
       nextBtn: document.getElementById("nextBtn"),
       previewToggleBtn: document.getElementById("previewToggleBtn"),
+      keyboardModeBtn: document.getElementById("keyboardModeBtn"),
       video: document.getElementById("camera"),
       overlay: document.getElementById("overlay"),
       flash: document.getElementById("flash"),
@@ -380,7 +422,10 @@
       bootOverlay: document.getElementById("bootOverlay"),
       bootStartBtn: document.getElementById("bootStartBtn"),
       bootDismissBtn: document.getElementById("bootDismissBtn"),
+      bootTroubleshootingBtn: document.getElementById("bootTroubleshootingBtn"),
+      bootTroubleshooting: document.getElementById("bootTroubleshooting"),
       bootError: document.getElementById("bootError"),
+      ariaAnnouncements: document.getElementById("ariaAnnouncements"),
       metricDeltaX: document.getElementById("metricDeltaX"),
       metricDeltaY: document.getElementById("metricDeltaY"),
       metricDirection: document.getElementById("metricDirection"),
@@ -446,6 +491,8 @@
     let frameSeq = 0;
     let workerBusy = false;
     let isOffscreenMode = false;
+    let keyboardOnlyMode = false;
+    let previewVisible = true;
     const inFlightFrames = new Map();
     const performanceMetrics = createPerformanceMetrics();
 
@@ -563,6 +610,16 @@
       el.className = cls;
     }
 
+    function announceStatus(message, politeness = "polite") {
+      // Komunikaty ARIA informują czytniki ekranu o zmianach stanu bez przenoszenia fokusu.
+      if (!ui.ariaAnnouncements) return;
+      ui.ariaAnnouncements.setAttribute("aria-live", politeness);
+      ui.ariaAnnouncements.textContent = "";
+      requestAnimationFrame(() => {
+        ui.ariaAnnouncements.textContent = message;
+      });
+    }
+
     function pulseFlash() {
       ui.flash.classList.add("visible");
       setTimeout(() => ui.flash.classList.remove("visible"), 120);
@@ -570,6 +627,7 @@
 
     function markAction(text, cls = "value-ok") {
       setText(ui.lastAction, text, cls);
+      announceStatus(`Akcja: ${text}`);
     }
 
     function showBootError(message) {
@@ -631,9 +689,22 @@
       detectionPaused = paused;
       setText(ui.modeStatus, paused ? "pauza" : "aktywny", paused ? "value-warn" : "value-ok");
       ui.toggleBtn.textContent = paused ? "Wznów detekcję" : "Wstrzymaj detekcję";
+      announceStatus(paused ? "Detekcja wstrzymana." : "Detekcja aktywna.");
       if (worker) {
         worker.postMessage({ type: "setPaused", paused });
       }
+    }
+
+    function setKeyboardOnlyMode(enabled) {
+      // Tryb keyboard-only jest równorzędną metodą sterowania i może działać z kamerą lub bez niej.
+      keyboardOnlyMode = enabled;
+      setText(
+        ui.inputModeStatus,
+        enabled ? "keyboard-only" : "gesty + klawiatura",
+        enabled ? "value-warn" : "value-ok"
+      );
+      ui.keyboardModeBtn.textContent = enabled ? "Tryb keyboard-only: ON" : "Tryb keyboard-only: OFF";
+      announceStatus(enabled ? "Włączono tryb keyboard-only." : "Włączono tryb gesty plus klawiatura.");
     }
 
     function loadConfig() {
@@ -813,12 +884,17 @@
       } else if (key === "h") {
         event.preventDefault();
         togglePreviewVisibility();
+      } else if (key === "k") {
+        event.preventDefault();
+        setKeyboardOnlyMode(!keyboardOnlyMode);
       } else if (["arrowright", "pagedown", " "].includes(key)) {
         event.preventDefault();
         deck.next();
+        markAction("klawiatura: następny slajd", "value-muted");
       } else if (["arrowleft", "pageup"].includes(key)) {
         event.preventDefault();
         deck.prev();
+        markAction("klawiatura: poprzedni slajd", "value-muted");
       }
     }
 
@@ -867,6 +943,7 @@
         if (msg.type === "ready") {
           workerReady = true;
           setText(ui.workerStatus, "gotowy", "value-ok");
+          announceStatus("Worker detekcji jest gotowy.");
           syncConfigToWorker();
           if (isOffscreenMode && offscreen) {
             worker.postMessage({ type: "attachCanvas", canvas: offscreen }, [offscreen]);
@@ -888,6 +965,7 @@
             else drawActiveZone();
           }
         } else if (msg.type === "gesture") {
+          if (keyboardOnlyMode) return;
           const now = performance.now();
           performanceMetrics.triggerTimes.push(now);
           trimTriggerWindow(now);
@@ -916,6 +994,7 @@
           }
         } else if (msg.type === "error") {
           setText(ui.workerStatus, "błąd", "value-err");
+          announceStatus("Wystąpił błąd workera detekcji.", "assertive");
           markAction(`błąd workera: ${msg.message}`, "value-err");
           showBootError(`Worker: ${msg.message}`);
           workerBusy = false;
@@ -948,6 +1027,7 @@
       ui.cameraPlaceholder.style.display = "none";
       cameraReady = true;
       setText(ui.cameraStatus, "aktywna", "value-ok");
+      announceStatus("Kamera została uruchomiona.");
       setOverlaySize();
       ui.toggleBtn.disabled = false;
     }
@@ -981,6 +1061,7 @@
         }
 
         setPaused(false);
+        setKeyboardOnlyMode(false);
         ui.bootOverlay.style.display = "none";
         markAction("system uruchomiony");
         stopLoop();
@@ -988,6 +1069,7 @@
       } catch (error) {
         const message = explainMediaError(error);
         setText(ui.cameraStatus, "błąd", "value-err");
+        announceStatus("Błąd uruchamiania kamery.", "assertive");
         markAction(`błąd uruchomienia: ${message}`, "value-err");
         showBootError(message);
         ui.startBtn.disabled = false;
@@ -1031,6 +1113,7 @@
       setText(ui.workerStatus, "zatrzymany", "value-muted");
       setText(ui.modeStatus, "zatrzymane", "value-muted");
       setText(ui.handStatus, "brak", "value-muted");
+      announceStatus("System został zatrzymany.");
       ui.toggleBtn.disabled = true;
       ui.toggleBtn.textContent = "Wznów detekcję";
       markAction(`system zatrzymany · ${new Date().toLocaleTimeString()}`, "value-warn");
@@ -1084,7 +1167,13 @@
     bindSafeClick(ui.bootStartBtn, startSystem);
     bindSafeClick(ui.bootDismissBtn, () => {
       ui.bootOverlay.style.display = "none";
+      setKeyboardOnlyMode(true);
       markAction("uruchomiono bez kamery");
+    });
+    bindSafeClick(ui.bootTroubleshootingBtn, () => {
+      const visible = ui.bootTroubleshooting.style.display === "block";
+      ui.bootTroubleshooting.style.display = visible ? "none" : "block";
+      announceStatus(visible ? "Ukryto sekcję troubleshooting." : "Pokazano sekcję troubleshooting.");
     });
     bindSafeClick(ui.closeDebugBtn, () => {
       debugVisible = true;
@@ -1098,6 +1187,9 @@
     bindSafeClick(ui.prevBtn, () => deck.prev());
     bindSafeClick(ui.nextBtn, () => deck.next());
     bindSafeClick(ui.previewToggleBtn, togglePreviewVisibility);
+    bindSafeClick(ui.keyboardModeBtn, () => {
+      setKeyboardOnlyMode(!keyboardOnlyMode);
+    });
     bindSafeClick(ui.testPrevBtn, () => {
       deck.prev();
       markAction("test: poprzedni slajd");
