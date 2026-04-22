@@ -1,0 +1,10 @@
+name: hand-wave
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - opencv
+  - mediapipe
+  - pyautogui
+  - pynput
+  - pip
