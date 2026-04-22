@@ -24,8 +24,51 @@ let latestMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
 let mpFilesetResolver = null;
 let mpHandLandmarker = null;
 
-async function loadMediaPipeModule() {
-  // Ładujemy moduł MediaPipe z listy źródeł, aby zapewnić fallback przy błędach CORS/CDN.
+function getMediaPipeFromGlobalScope() {
+  // Normalizujemy różne warianty eksportów globalnych udostępnianych przez bundla UMD/IIFE.
+  const candidates = [
+    self,
+    self.vision,
+    self.MediaPipeTasksVision,
+    self.Module
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate?.FilesetResolver && candidate?.HandLandmarker) {
+      return {
+        FilesetResolver: candidate.FilesetResolver,
+        HandLandmarker: candidate.HandLandmarker
+      };
+    }
+  }
+
+  return null;
+}
+
+function loadMediaPipeWithImportScripts() {
+  // Priorytetowo ładujemy klasyczny bundle przez importScripts, bo działa stabilniej w workerach.
+  const scriptUrls = [
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22",
+    "https://unpkg.com/@mediapipe/tasks-vision@0.10.22"
+  ];
+  const loadErrors = [];
+
+  for (const scriptUrl of scriptUrls) {
+    try {
+      self.importScripts(scriptUrl);
+      const resolved = getMediaPipeFromGlobalScope();
+      if (resolved) return { ...resolved, source: scriptUrl, loader: "importScripts" };
+      loadErrors.push(`${scriptUrl}: missing expected global exports`);
+    } catch (error) {
+      loadErrors.push(`${scriptUrl}: ${error?.message || String(error)}`);
+    }
+  }
+
+  return { loadErrors };
+}
+
+async function loadMediaPipeWithDynamicImport() {
+  // Zachowujemy dynamiczny import jako dodatkowy fallback dla środowisk wspierających network imports.
   const moduleUrls = [
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm",
     "https://esm.sh/@mediapipe/tasks-vision@0.10.22",
@@ -40,7 +83,8 @@ async function loadMediaPipeModule() {
         return {
           FilesetResolver: module.FilesetResolver,
           HandLandmarker: module.HandLandmarker,
-          source: moduleUrl
+          source: moduleUrl,
+          loader: "dynamic-import"
         };
       }
       importErrors.push(`${moduleUrl}: missing expected exports`);
@@ -49,7 +93,27 @@ async function loadMediaPipeModule() {
     }
   }
 
-  throw new Error(`Nie udało się załadować MediaPipe. Próby: ${importErrors.join(" | ")}`);
+  return { importErrors };
+}
+
+async function loadMediaPipeModule() {
+  // Strategia wieloetapowa: najpierw importScripts (najbardziej kompatybilny), potem dynamic import.
+  const scriptResult = loadMediaPipeWithImportScripts();
+  if (scriptResult?.FilesetResolver && scriptResult?.HandLandmarker) {
+    return scriptResult;
+  }
+
+  const moduleResult = await loadMediaPipeWithDynamicImport();
+  if (moduleResult?.FilesetResolver && moduleResult?.HandLandmarker) {
+    return moduleResult;
+  }
+
+  const errors = [
+    ...(scriptResult?.loadErrors || []),
+    ...(moduleResult?.importErrors || [])
+  ];
+
+  throw new Error(`Nie udało się załadować MediaPipe. Próby: ${errors.join(" | ")}`);
 }
 
 async function resolveVisionFileset() {
@@ -147,6 +211,14 @@ async function init() {
       const moduleRef = await loadMediaPipeModule();
       mpFilesetResolver = moduleRef.FilesetResolver;
       mpHandLandmarker = moduleRef.HandLandmarker;
+      // Publikujemy źródło loadera tylko diagnostycznie, aby łatwiej analizować problemy CDN w UI.
+      self.postMessage({
+        type: "status",
+        workerStatus: {
+          text: `ładowanie (${moduleRef.loader || "auto"})`,
+          className: "value-warn"
+        }
+      });
     }
 
     const vision = await resolveVisionFileset();
