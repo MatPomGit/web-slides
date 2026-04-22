@@ -27,10 +27,16 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Validate Pages entrypoint
+        run: |
+          # Weryfikujemy obecność index.html, aby build nie publikował pustego artefaktu.
+          test -f web/index.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          # Publikujemy wyłącznie katalog web/, w którym znajduje się docelowy index.html dla GitHub Pages.
+          path: web
 
       - name: Deploy to GitHub Pages
         id: deployment
