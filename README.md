@@ -7,6 +7,12 @@ Wersja projektu, w której detekcja dłoni MediaPipe działa w `gesture-worker.j
 - zmniejsza ryzyko przycięć animacji Reveal.js
 - pozwala utrzymać płynniejsze przejścia podczas pracy kamery i detekcji
 
+## Bezpieczeństwo i prywatność
+- ustawiony jest jawny `Content-Security-Policy` dopasowany do realnych źródeł (`self`, `cdn.jsdelivr.net`, `storage.googleapis.com`)
+- krytyczne zasoby aplikacji (`app.js`, `app.css`) są self-hostowane w repozytorium
+- UI zawiera czytelny komunikat, że obraz z kamery nie jest wysyłany poza urządzenie
+- dostępna jest opcja całkowitego wyłączenia detekcji (z resetem lokalnej konfiguracji)
+
 ## Pliki
 - `index.html` — aplikacja Reveal.js
 - `slides.md` — prezentacja ładowana z Markdown
