@@ -301,6 +301,12 @@
     <div class="row"><span>deltaY</span><span id="metricDeltaY" class="value-muted">0.000</span></div>
     <div class="row"><span>Kierunek</span><span id="metricDirection" class="value-muted">brak</span></div>
     <div class="row"><span>Pewność dłoni</span><span id="metricPresence" class="value-muted">0.000</span></div>
+    <div class="row"><span>FPS wejściowy</span><span id="metricInputFps" class="value-muted">0.0</span></div>
+    <div class="row"><span>FPS detekcji (ef.)</span><span id="metricDetectionFps" class="value-muted">0.0</span></div>
+    <div class="row"><span>Śr. latencja [ms]</span><span id="metricLatencyAvg" class="value-muted">0.0</span></div>
+    <div class="row"><span>Odrzucone ramki</span><span id="metricDroppedFrames" class="value-muted">0</span></div>
+    <div class="row"><span>Triggery / min</span><span id="metricTriggersPerMin" class="value-muted">0.0</span></div>
+    <div class="row"><span>Histogram confidence</span><span id="metricConfidenceHistogram" class="value-muted">[0,0,0,0,0]</span></div>
 
     <div class="grid2">
       <label for="frameSkip">Frame skip</label><input id="frameSkip" type="number" min="1" max="10" step="1" />
@@ -323,6 +329,7 @@
       <button id="testPrevBtn">Test: poprzedni</button>
       <button id="testNextBtn">Test: następny</button>
       <button id="closeDebugBtn">Zamknij panel</button>
+      <button id="exportMetricsBtn">Eksport metryk JSON</button>
     </div>
   </aside>
 
@@ -371,6 +378,13 @@
       metricDeltaY: document.getElementById("metricDeltaY"),
       metricDirection: document.getElementById("metricDirection"),
       metricPresence: document.getElementById("metricPresence"),
+      metricInputFps: document.getElementById("metricInputFps"),
+      metricDetectionFps: document.getElementById("metricDetectionFps"),
+      metricLatencyAvg: document.getElementById("metricLatencyAvg"),
+      metricDroppedFrames: document.getElementById("metricDroppedFrames"),
+      metricTriggersPerMin: document.getElementById("metricTriggersPerMin"),
+      metricConfidenceHistogram: document.getElementById("metricConfidenceHistogram"),
+      exportMetricsBtn: document.getElementById("exportMetricsBtn"),
       frameSkip: document.getElementById("frameSkip"),
       cooldownMs: document.getElementById("cooldownMs"),
       historyWindowMs: document.getElementById("historyWindowMs"),
@@ -425,6 +439,105 @@
     let frameSeq = 0;
     let workerBusy = false;
     let isOffscreenMode = false;
+    const inFlightFrames = new Map();
+    const performanceMetrics = createPerformanceMetrics();
+
+    function createPerformanceMetrics() {
+      // Trzymamy stan metryk runtime oraz histogram confidence dla porównań eksperymentalnych.
+      return {
+        startedAt: Date.now(),
+        inputFrameTimes: [],
+        processedFrameTimes: [],
+        latencyMs: [],
+        droppedFrames: 0,
+        triggerTimes: [],
+        confidenceHistogram: [0, 0, 0, 0, 0]
+      };
+    }
+
+    function pushTimestamp(buffer, timestamp, windowMs = 1000) {
+      // Bufor czasowy jest ograniczany oknem, aby obliczać FPS metodą ruchomego okna.
+      buffer.push(timestamp);
+      while (buffer.length && timestamp - buffer[0] > windowMs) {
+        buffer.shift();
+      }
+    }
+
+    function pushLatencySample(latencyMs) {
+      // Przechowujemy ograniczoną liczbę próbek, by średnia latencja nie rosła bez końca.
+      const LATENCY_WINDOW = 240;
+      performanceMetrics.latencyMs.push(latencyMs);
+      if (performanceMetrics.latencyMs.length > LATENCY_WINDOW) {
+        performanceMetrics.latencyMs.shift();
+      }
+    }
+
+    function getAverageLatencyMs() {
+      // Średnia latencja z ostatniego okna próbek.
+      if (!performanceMetrics.latencyMs.length) return 0;
+      const sum = performanceMetrics.latencyMs.reduce((acc, value) => acc + value, 0);
+      return sum / performanceMetrics.latencyMs.length;
+    }
+
+    function recordConfidence(confidence) {
+      // Confidence mapujemy do pięciu kubełków histogramu [0-0.2), ... [0.8-1.0].
+      if (!Number.isFinite(confidence)) return;
+      const normalized = clamp(confidence, 0, 1);
+      const index = Math.min(4, Math.floor(normalized * 5));
+      performanceMetrics.confidenceHistogram[index] += 1;
+    }
+
+    function trimTriggerWindow(now) {
+      // Triggery / min bazują wyłącznie na ostatnich 60 sekundach.
+      const ONE_MINUTE = 60_000;
+      while (performanceMetrics.triggerTimes.length && now - performanceMetrics.triggerTimes[0] > ONE_MINUTE) {
+        performanceMetrics.triggerTimes.shift();
+      }
+    }
+
+    function updateDebugPerformanceMetrics() {
+      // Synchronizujemy metryki wydajnościowe do panelu debug.
+      const now = performance.now();
+      trimTriggerWindow(now);
+      ui.metricInputFps.textContent = performanceMetrics.inputFrameTimes.length.toFixed(1);
+      ui.metricDetectionFps.textContent = performanceMetrics.processedFrameTimes.length.toFixed(1);
+      ui.metricLatencyAvg.textContent = getAverageLatencyMs().toFixed(1);
+      ui.metricDroppedFrames.textContent = String(performanceMetrics.droppedFrames);
+      ui.metricTriggersPerMin.textContent = performanceMetrics.triggerTimes.length.toFixed(1);
+      ui.metricConfidenceHistogram.textContent = `[${performanceMetrics.confidenceHistogram.join(", ")}]`;
+    }
+
+    function buildMetricsExportPayload() {
+      // Eksport JSON zawiera aktualną konfigurację i metryki wymagane do porównań eksperymentów.
+      const nowIso = new Date().toISOString();
+      return {
+        exportedAt: nowIso,
+        sessionStartedAt: new Date(performanceMetrics.startedAt).toISOString(),
+        config,
+        metrics: {
+          inputFps: Number(ui.metricInputFps.textContent),
+          detectionFpsEffective: Number(ui.metricDetectionFps.textContent),
+          averageLatencyMs: Number(ui.metricLatencyAvg.textContent),
+          droppedFrames: performanceMetrics.droppedFrames,
+          triggersPerMin: Number(ui.metricTriggersPerMin.textContent),
+          confidenceHistogram: [...performanceMetrics.confidenceHistogram],
+          latencySamplesMs: [...performanceMetrics.latencyMs]
+        }
+      };
+    }
+
+    function exportMetricsJson() {
+      // Generujemy i pobieramy snapshot metryk jako plik JSON.
+      const payload = buildMetricsExportPayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `gesture-metrics-${Date.now()}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      markAction("wyeksportowano metryki JSON");
+    }
 
     function initializeRenderingMode() {
       // Preferujemy tryb OffscreenCanvas, aby odciążyć główny wątek UI.
@@ -717,12 +830,17 @@
             ui.metricDeltaY.textContent = Number(msg.metrics.deltaY || 0).toFixed(3);
             ui.metricDirection.textContent = msg.metrics.direction || "brak";
             ui.metricPresence.textContent = Number(msg.metrics.presence || 0).toFixed(3);
+            recordConfidence(Number(msg.metrics.presence || 0));
+            updateDebugPerformanceMetrics();
           }
           if (!isOffscreenMode) {
             if (msg.landmarks) drawLandmarks(msg.landmarks);
             else drawActiveZone();
           }
         } else if (msg.type === "gesture") {
+          const now = performance.now();
+          performanceMetrics.triggerTimes.push(now);
+          trimTriggerWindow(now);
           if (msg.action === "next") {
             deck.next();
             markAction(`następny slajd · ${new Date().toLocaleTimeString()}`);
@@ -733,6 +851,14 @@
             pulseFlash();
           }
         } else if (msg.type === "processed") {
+          const processedAt = performance.now();
+          pushTimestamp(performanceMetrics.processedFrameTimes, processedAt);
+          if (Number.isFinite(msg.frameId) && inFlightFrames.has(msg.frameId)) {
+            const frameStart = inFlightFrames.get(msg.frameId);
+            inFlightFrames.delete(msg.frameId);
+            pushLatencySample(processedAt - frameStart);
+          }
+          updateDebugPerformanceMetrics();
           workerBusy = false;
           if (!isOffscreenMode) {
             if (msg.landmarks) drawLandmarks(msg.landmarks);
@@ -781,6 +907,10 @@
       ui.startBtn.disabled = true;
       ui.bootStartBtn.disabled = true;
       try {
+        // Przy każdym nowym starcie resetujemy metryki sesji, aby eksport miał spójne dane.
+        Object.assign(performanceMetrics, createPerformanceMetrics());
+        inFlightFrames.clear();
+        updateDebugPerformanceMetrics();
         createWorker();
         if (!cameraStream) await startCamera();
 
@@ -828,6 +958,7 @@
       detectionPaused = true;
       frameCounter = 0;
       frameSeq = 0;
+      inFlightFrames.clear();
 
       // Zwalniamy wszystkie ścieżki kamery, aby urządzenie nie pozostawało zajęte po zamknięciu.
       cameraStream?.getTracks().forEach((track) => track.stop());
@@ -861,26 +992,39 @@
 
     function renderLoop() {
       rafId = requestAnimationFrame(renderLoop);
-      if (detectionPaused || !cameraReady || !worker || !workerReady || workerBusy) return;
+      if (detectionPaused || !cameraReady || !worker || !workerReady) return;
       if (ui.video.readyState < 2) return;
+
+      if (workerBusy) {
+        // Worker jest zajęty, więc bieżąca klatka nie trafia do detekcji.
+        performanceMetrics.droppedFrames += 1;
+        updateDebugPerformanceMetrics();
+        return;
+      }
 
       frameCounter++;
       if (frameCounter % Math.max(1, config.frameSkip) !== 0) return;
+      pushTimestamp(performanceMetrics.inputFrameTimes, performance.now());
 
       captureCtx.drawImage(ui.video, 0, 0, captureCanvas.width, captureCanvas.height);
       const bitmapPromise = createImageBitmap(captureCanvas);
 
       workerBusy = true;
+      const frameId = ++frameSeq;
+      const frameCapturedAt = performance.now();
+      inFlightFrames.set(frameId, frameCapturedAt);
       bitmapPromise.then((bitmap) => {
         worker.postMessage({
           type: "processFrame",
-          frameId: ++frameSeq,
+          frameId,
           timestamp: performance.now(),
+          capturedAt: frameCapturedAt,
           bitmap,
           width: captureCanvas.width,
           height: captureCanvas.height
         }, [bitmap]);
       }).catch((error) => {
+        inFlightFrames.delete(frameId);
         workerBusy = false;
         markAction(`błąd obrazu: ${error.message}`, "value-err");
       });
@@ -896,6 +1040,7 @@
       debugVisible = true;
       toggleDebug();
     });
+    bindSafeClick(ui.exportMetricsBtn, exportMetricsJson);
     bindSafeClick(ui.toggleBtn, () => {
       setPaused(!detectionPaused);
       drawActiveZone();
