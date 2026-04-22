@@ -201,6 +201,7 @@
     let detectionDisabled = loadDetectionDisabled();
     let previewVisible = true;
     let hudVisible = true;
+    let hudFullyHidden = false;
     let latestMotionMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
     const inFlightFrames = new Map();
     const performanceMetrics = createPerformanceMetrics();
@@ -636,8 +637,24 @@
 
     function toggleHudVisibility() {
       // Ten sam handler obsługuje ukrycie panelu i jego ponowne wyświetlenie.
+      hudFullyHidden = false;
       setHudVisibility(!hudVisible);
       markAction(hudVisible ? "panel sterowania widoczny" : "panel sterowania ukryty", "value-muted");
+    }
+
+    function setHudFullyHidden(hidden) {
+      // Tryb pełnego ukrycia chowa zarówno HUD, jak i przycisk przywracania; powrót obsługujemy klawiszem P.
+      hudFullyHidden = hidden;
+      if (hidden) {
+        setHudVisibility(false);
+        ui.hudRestoreBtn.classList.remove("visible");
+        markAction("panel sterowania całkowicie ukryty", "value-muted");
+        announceStatus("Panel sterowania został całkowicie ukryty.");
+      } else {
+        setHudVisibility(true);
+        markAction("panel sterowania przywrócony", "value-muted");
+        announceStatus("Panel sterowania został przywrócony.");
+      }
     }
 
     function clearLocalGestureConfiguration() {
@@ -686,6 +703,9 @@
       } else if (key === "h") {
         event.preventDefault();
         togglePreviewVisibility();
+      } else if (key === "p") {
+        event.preventDefault();
+        setHudFullyHidden(!hudFullyHidden);
       } else if (key === "k") {
         event.preventDefault();
         setKeyboardOnlyMode(!keyboardOnlyMode);
@@ -746,6 +766,13 @@
 
     function createWorker() {
       if (worker || detectionDisabled) return;
+      const resetWorkerState = () => {
+        // Po błędzie pozwalamy na czysty restart workera bez odświeżania strony.
+        worker?.terminate?.();
+        worker = null;
+        workerReady = false;
+        workerBusy = false;
+      };
       worker = new Worker("./gesture-worker.js", { type: "module" });
 
       worker.addEventListener("message", (event) => {
@@ -814,7 +841,7 @@
           announceStatus("Wystąpił błąd workera detekcji.", "assertive");
           markAction(`błąd workera: ${msg.message}`, "value-err");
           showBootError(`Worker: ${msg.message}`);
-          workerBusy = false;
+          resetWorkerState();
         }
       });
 
@@ -822,6 +849,7 @@
         setText(ui.workerStatus, "błąd", "value-err");
         markAction(`worker error: ${error.message}`, "value-err");
         showBootError(`Worker script error: ${error.message}`);
+        resetWorkerState();
       });
     }
 
