@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import collections
 import dataclasses
+import importlib
 import logging
 import signal
 import time
@@ -19,6 +20,23 @@ from typing import Deque, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
+
+
+def resolve_mediapipe_hands():
+    """Zwraca moduł MediaPipe Hands zgodny z różnymi wariantami instalacji."""
+    # Standardowa ścieżka dostępna w klasycznym pakiecie `mediapipe`.
+    solutions = getattr(mp, "solutions", None)
+    if solutions is not None and hasattr(solutions, "hands"):
+        return solutions.hands
+
+    # Fallback dla środowisk, gdzie API `solutions` nie jest wystawione na poziomie root.
+    mp_solutions = importlib.import_module("mediapipe.python.solutions")
+
+    if not hasattr(mp_solutions, "hands"):
+        raise RuntimeError(
+            "Wykryta instalacja `mediapipe` nie udostępnia `hands` w `solutions`."
+        )
+    return mp_solutions.hands
 
 
 class KeyboardBackend:
@@ -177,7 +195,8 @@ class HandTracker:
     """Warstwa odpowiedzialna za wykrywanie dłoni i wyznaczanie cech ruchu."""
     def __init__(self, config: Config) -> None:
         self.cfg = config
-        self.mp_hands = mp.solutions.hands
+        # Rozwiązujemy moduł Hands w sposób odporny na różnice między wydaniami MediaPipe.
+        self.mp_hands = resolve_mediapipe_hands()
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=self.cfg.max_num_hands,
@@ -214,10 +233,21 @@ class SlideWaveApp:
         self.cfg = config
         self.detector = WaveDetector(config)
         self.tracker = HandTracker(config)
+        # Rysowanie landmarków może być dostępne inną ścieżką niż `mp.solutions`.
+        self.mp_drawing_utils = self._resolve_drawing_utils()
         self.keyboard = self._make_keyboard_backend(config.backend)
         self.running = True
         self.frame_index = 0
         self.last_action = "none"
+
+    @staticmethod
+    def _resolve_drawing_utils():
+        """Zwraca narzędzia do rysowania MediaPipe kompatybilne z bieżącą instalacją."""
+        solutions = getattr(mp, "solutions", None)
+        if solutions is not None and hasattr(solutions, "drawing_utils"):
+            return solutions.drawing_utils
+        from mediapipe.python.solutions import drawing_utils  # type: ignore
+        return drawing_utils
 
     @staticmethod
     def _make_keyboard_backend(name: str) -> KeyboardBackend:
@@ -241,7 +271,7 @@ class SlideWaveApp:
         cv2.rectangle(frame, (x1, y1), (x2, y2), (80, 200, 80), 2)
 
         if hand_landmarks is not None:
-            mp.solutions.drawing_utils.draw_landmarks(
+            self.mp_drawing_utils.draw_landmarks(
                 frame, hand_landmarks, self.tracker.mp_hands.HAND_CONNECTIONS
             )
 
