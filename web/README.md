@@ -37,3 +37,13 @@ Wersja projektu, w której detekcja dłoni MediaPipe działa w `gesture-worker.j
 
 ## GitHub Pages
 Projekt jest przygotowany do publikacji jako statyczna strona na GitHub Pages.
+
+## Najczęstszy powód niedziałającego GitHub Pages
+Jeżeli strona się nie publikuje, najpierw sprawdź **zakładkę Actions** i workflow `Deploy static site to GitHub Pages`.
+Najczęstsza przyczyna w tym repo to push na gałąź inną niż `main`/`master` (workflow uruchamia się tylko dla tych gałęzi).
+
+Szybka checklista:
+1. W `Settings -> Pages` ustaw `Source: GitHub Actions`.
+2. Upewnij się, że domyślna gałąź repo to `main` albo `master`.
+3. Sprawdź, czy ostatni commit zmieniał coś w `web/` (albo sam workflow), bo tylko wtedy automatyczny deploy wystartuje.
+4. Otwórz log workflow i zweryfikuj krok `Upload artifact` (powinien publikować katalog `web`).
