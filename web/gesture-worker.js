@@ -28,7 +28,8 @@ async function loadMediaPipeModule() {
   // Ładujemy moduł MediaPipe z listy źródeł, aby zapewnić fallback przy błędach CORS/CDN.
   const moduleUrls = [
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm",
-    "https://esm.sh/@mediapipe/tasks-vision@0.10.22"
+    "https://esm.sh/@mediapipe/tasks-vision@0.10.22",
+    "https://unpkg.com/@mediapipe/tasks-vision@0.10.22/+esm"
   ];
   const importErrors = [];
 
@@ -49,6 +50,26 @@ async function loadMediaPipeModule() {
   }
 
   throw new Error(`Nie udało się załadować MediaPipe. Próby: ${importErrors.join(" | ")}`);
+}
+
+async function resolveVisionFileset() {
+  // Próbujemy kilku CDN-ów z paczką WASM, żeby ograniczyć ryzyko awarii pojedynczego źródła.
+  const wasmRoots = [
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm",
+    "https://unpkg.com/@mediapipe/tasks-vision@0.10.22/wasm"
+  ];
+  const resolveErrors = [];
+
+  for (const wasmRoot of wasmRoots) {
+    try {
+      const vision = await mpFilesetResolver.forVisionTasks(wasmRoot);
+      return vision;
+    } catch (error) {
+      resolveErrors.push(`${wasmRoot}: ${error?.message || String(error)}`);
+    }
+  }
+
+  throw new Error(`Nie udało się zainicjalizować plików WASM MediaPipe. Próby: ${resolveErrors.join(" | ")}`);
 }
 
 function postStatus(handText, handClass, metrics = {}, landmarks = null) {
@@ -128,9 +149,7 @@ async function init() {
       mpHandLandmarker = moduleRef.HandLandmarker;
     }
 
-    const vision = await mpFilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
-    );
+    const vision = await resolveVisionFileset();
 
     handLandmarker = await mpHandLandmarker.createFromOptions(vision, {
       baseOptions: {
