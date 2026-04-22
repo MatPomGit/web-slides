@@ -773,6 +773,19 @@
         workerReady = false;
         workerBusy = false;
       };
+
+      const handleWorkerFatalError = (rawMessage) => {
+        // W razie awarii workera przełączamy aplikację w bezpieczny tryb keyboard-only.
+        const message = rawMessage || "Nieznany błąd workera.";
+        setText(ui.workerStatus, "błąd", "value-err");
+        setPaused(true);
+        setKeyboardOnlyMode(true);
+        markAction(`błąd workera: ${message}`, "value-err");
+        showBootError(`Worker: ${message} Przełączono na tryb keyboard-only.`);
+        announceStatus("Wykryto błąd detekcji gestów. Aktywowano keyboard-only.", "assertive");
+        resetWorkerState();
+      };
+
       worker = new Worker("./gesture-worker.js", { type: "module" });
 
       worker.addEventListener("message", (event) => {
@@ -837,19 +850,12 @@
             else drawActiveZone();
           }
         } else if (msg.type === "error") {
-          setText(ui.workerStatus, "błąd", "value-err");
-          announceStatus("Wystąpił błąd workera detekcji.", "assertive");
-          markAction(`błąd workera: ${msg.message}`, "value-err");
-          showBootError(`Worker: ${msg.message}`);
-          resetWorkerState();
+          handleWorkerFatalError(msg.message);
         }
       });
 
       worker.addEventListener("error", (error) => {
-        setText(ui.workerStatus, "błąd", "value-err");
-        markAction(`worker error: ${error.message}`, "value-err");
-        showBootError(`Worker script error: ${error.message}`);
-        resetWorkerState();
+        handleWorkerFatalError(error.message);
       });
     }
 

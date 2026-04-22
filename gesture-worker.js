@@ -1,5 +1,3 @@
-import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm";
-
 const DEFAULT_CONFIG = {
   frameSkip: 2,
   cooldownMs: 1200,
@@ -22,6 +20,36 @@ let overlayCanvas = null;
 let overlayCtx = null;
 let debugEnabled = false;
 let latestMetrics = { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 };
+
+let mpFilesetResolver = null;
+let mpHandLandmarker = null;
+
+async function loadMediaPipeModule() {
+  // Ładujemy moduł MediaPipe z listy źródeł, aby zapewnić fallback przy błędach CORS/CDN.
+  const moduleUrls = [
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm",
+    "https://esm.sh/@mediapipe/tasks-vision@0.10.22"
+  ];
+  const importErrors = [];
+
+  for (const moduleUrl of moduleUrls) {
+    try {
+      const module = await import(moduleUrl);
+      if (module?.FilesetResolver && module?.HandLandmarker) {
+        return {
+          FilesetResolver: module.FilesetResolver,
+          HandLandmarker: module.HandLandmarker,
+          source: moduleUrl
+        };
+      }
+      importErrors.push(`${moduleUrl}: missing expected exports`);
+    } catch (error) {
+      importErrors.push(`${moduleUrl}: ${error?.message || String(error)}`);
+    }
+  }
+
+  throw new Error(`Nie udało się załadować MediaPipe. Próby: ${importErrors.join(" | ")}`);
+}
 
 function postStatus(handText, handClass, metrics = {}, landmarks = null) {
   self.postMessage({
@@ -94,11 +122,17 @@ async function init() {
       metrics: { deltaX: 0, deltaY: 0, direction: "brak", presence: 0 }
     });
 
-    const vision = await FilesetResolver.forVisionTasks(
+    if (!mpFilesetResolver || !mpHandLandmarker) {
+      const moduleRef = await loadMediaPipeModule();
+      mpFilesetResolver = moduleRef.FilesetResolver;
+      mpHandLandmarker = moduleRef.HandLandmarker;
+    }
+
+    const vision = await mpFilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
     );
 
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    handLandmarker = await mpHandLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
       },

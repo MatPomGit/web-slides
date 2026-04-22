@@ -7,10 +7,9 @@
 
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <!-- Zezwalamy na CDN Reveal.js również dla stylów, aby arkusze CSS mogły zostać poprawnie załadowane. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com; worker-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; script-src-elem 'self' https://cdn.jsdelivr.net https://esm.sh; style-src 'self'; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com https://esm.sh; worker-src 'self'; font-src 'self' data: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css" id="theme" />
-  <link rel="stylesheet" href="./app.css" />
+    <link rel="stylesheet" href="./app.css" />
 
   
 </head>

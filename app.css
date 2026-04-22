@@ -20,6 +20,31 @@
       width: 100vw;
     }
 
+
+    .reveal {
+      color: #f3f6fb;
+      background: radial-gradient(circle at top, #1a2230 0%, #111 45%, #0b0b0b 100%);
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    .reveal .slides section {
+      text-align: left;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      color: #ffffff;
+      text-transform: none;
+      letter-spacing: 0.02em;
+    }
+
+    .reveal p,
+    .reveal li {
+      color: #dce4f2;
+      line-height: 1.35;
+    }
+
     #flash {
       position: fixed;
       inset: 0;
