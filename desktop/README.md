@@ -83,6 +83,9 @@ Jeśli wykrywa **za rzadko**:
 
 ## Rozwiązywanie problemów
 
+0. **`PackagesNotFoundError: mediapipe` podczas `--create-env`**  
+   W `environment.yml` pakiet `mediapipe` jest instalowany przez `pip` (sekcja `pip:`), ponieważ często nie jest dostępny jako pakiet Conda dla bieżącej platformy.
+
 1. **`conda: command not found`**  
    Launcher automatycznie próbuje wykryć Condę w typowych lokalizacjach (`~/miniconda3`, `~/anaconda3`, `/opt/miniconda3`, `/opt/anaconda3`). Jeśli błąd nadal występuje, zainstaluj Minicondę/Anacondę lub dodaj Condę do `PATH`, np. `export PATH="$HOME/miniconda3/bin:$PATH"`.
 
