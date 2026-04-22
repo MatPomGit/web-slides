@@ -503,9 +503,26 @@
       return activeElement.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement.tagName);
     }
 
+    function isInteractiveControlElement(eventTarget) {
+      // Dla elementów interaktywnych zostawiamy natywną obsługę klawiatury (Enter/Space, aktywacja linków, itp.).
+      const activeElement = eventTarget instanceof Element ? eventTarget : document.activeElement;
+      if (!(activeElement instanceof Element)) return false;
+      return Boolean(activeElement.closest("button, a, [role='button']"));
+    }
+
+    function isHudControlFocused() {
+      // Skróty globalne blokujemy, jeśli fokus jest na kontrolkach HUD/debug, aby nie zaburzać dostępności UI.
+      if (!(document.activeElement instanceof Element)) return false;
+      const controlSelectors = "button, a, [role='button'], input, select, textarea, [contenteditable='true']";
+      return Boolean(document.activeElement.closest(`#hud ${controlSelectors}, #debugPanel ${controlSelectors}, #bootOverlay ${controlSelectors}`));
+    }
+
     function handleGlobalKeyboard(event) {
-      // Obsługujemy skróty globalnie, żeby działały niezależnie od aktualnego fokusowania Reveal.js.
-      if (isTypingContext(event.target)) return;
+      // Skróty działają tylko w obszarze prezentacji lub gdy fokus nie jest na kontrolkach HUD/debug.
+      if (isTypingContext(event.target) || isInteractiveControlElement(event.target)) return;
+      const eventTarget = event.target instanceof Element ? event.target : document.activeElement;
+      const isInsidePresentation = eventTarget instanceof Element && Boolean(eventTarget.closest(".reveal"));
+      if (!isInsidePresentation && isHudControlFocused()) return;
       const key = event.key.toLowerCase();
 
       if (key === "d") {
