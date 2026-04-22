@@ -22,6 +22,7 @@ import mediapipe as mp
 
 
 class KeyboardBackend:
+    """Abstrakcja wysyłania klawiszy do sterowania slajdami."""
     def press_next(self) -> None:
         raise NotImplementedError
 
@@ -30,6 +31,7 @@ class KeyboardBackend:
 
 
 class PyAutoGUIBackend(KeyboardBackend):
+    """Backend oparty o bibliotekę pyautogui."""
     def __init__(self) -> None:
         import pyautogui
         pyautogui.FAILSAFE = False
@@ -43,6 +45,7 @@ class PyAutoGUIBackend(KeyboardBackend):
 
 
 class PynputBackend(KeyboardBackend):
+    """Backend oparty o bibliotekę pynput."""
     def __init__(self) -> None:
         from pynput.keyboard import Controller, Key
         self._controller = Controller()
@@ -104,6 +107,7 @@ class DetectionState:
 
 
 class WaveDetector:
+    """Detektor machnięcia analizujący ruch dłoni w krótkim oknie czasowym."""
     def __init__(self, config: Config) -> None:
         self.cfg = config
         self.samples: Deque[Sample] = collections.deque()
@@ -170,6 +174,7 @@ class WaveDetector:
 
 
 class HandTracker:
+    """Warstwa odpowiedzialna za wykrywanie dłoni i wyznaczanie cech ruchu."""
     def __init__(self, config: Config) -> None:
         self.cfg = config
         self.mp_hands = mp.solutions.hands
@@ -204,6 +209,7 @@ class HandTracker:
 
 
 class SlideWaveApp:
+    """Główna pętla aplikacji desktopowej."""
     def __init__(self, config: Config) -> None:
         self.cfg = config
         self.detector = WaveDetector(config)
@@ -297,6 +303,7 @@ class SlideWaveApp:
                             break
                     continue
 
+                # Analiza dłoni odbywa się tylko na wybranych klatkach dla niższego opóźnienia.
                 h, w = frame.shape[:2]
                 result = self.tracker.process(frame)
                 now = time.time()
@@ -395,6 +402,7 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
     args = parser.parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
 
+    # Walidacja ROI zapobiega konfiguracjom powodującym błędną detekcję.
     x1, y1, x2, y2 = args.roi
     if not (0.0 <= x1 < x2 <= 1.0 and 0.0 <= y1 < y2 <= 1.0):
         parser.error("ROI musi być w zakresie 0..1 i spełniać x1 < x2, y1 < y2")
