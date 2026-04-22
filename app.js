@@ -931,7 +931,7 @@
           type: "processFrame",
           frameId,
           timestamp: performance.now(),
-          capturedAt: frameCapturedAt,
+          // Przesyłamy tylko pola wymagane przez worker, aby utrzymać minimalny kontrakt komunikatu.
           bitmap,
           width: captureCanvas.width,
           height: captureCanvas.height
