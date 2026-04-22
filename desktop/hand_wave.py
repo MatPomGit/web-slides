@@ -36,8 +36,17 @@ def resolve_mediapipe_solutions_module():
         "mediapipe.python.solutions",
     )
     for module_name in candidate_modules:
+        # Niektóre wydania `mediapipe` nie mają pakietu pośredniego `mediapipe.python`.
+        # W takiej sytuacji `find_spec("mediapipe.python.solutions")` może rzucić
+        # `ModuleNotFoundError` zamiast zwrócić `None`, więc obsługujemy ten przypadek
+        # i przechodzimy do kolejnego kandydata.
+        try:
+            module_spec = importlib.util.find_spec(module_name)
+        except ModuleNotFoundError:
+            continue
+
         # Sprawdzamy istnienie modułu przed importem, aby uniknąć wyjątków.
-        if importlib.util.find_spec(module_name) is None:
+        if module_spec is None:
             continue
         return importlib.import_module(module_name)
 
