@@ -20,6 +20,7 @@ from typing import Deque, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
+from run_logger import configure_run_logging
 
 
 def _import_first_available_module(module_names: Tuple[str, ...]):
@@ -302,6 +303,11 @@ class SlideWaveApp:
         self.running = True
         self.frame_index = 0
         self.last_action = "none"
+        self.frames_read = 0
+        self.frames_dropped = 0
+        self.hand_detections = 0
+        self.gestures_next = 0
+        self.gestures_previous = 0
 
     @staticmethod
     def _resolve_drawing_utils():
@@ -379,7 +385,9 @@ class SlideWaveApp:
                 ok, frame = cap.read()
                 if not ok:
                     logging.warning("Pominięto klatkę: błąd odczytu z kamery")
+                    self.frames_dropped += 1
                     continue
+                self.frames_read += 1
 
                 if self.cfg.mirror:
                     frame = cv2.flip(frame, 1)
@@ -402,6 +410,7 @@ class SlideWaveApp:
                 ready = False
 
                 if result.multi_hand_landmarks:
+                    self.hand_detections += 1
                     hand_landmarks = result.multi_hand_landmarks[0]
                     cx, cy = self.tracker.palm_center_px(hand_landmarks, w, h)
 
@@ -418,11 +427,13 @@ class SlideWaveApp:
                             logging.info("Wykryto gest w prawo -> NEXT")
                             self.keyboard.press_next()
                             self.last_action = "next"
+                            self.gestures_next += 1
                             self.detector.mark_triggered(now)
                         elif direction == "left":
                             logging.info("Wykryto gest w lewo -> PREVIOUS")
                             self.keyboard.press_previous()
                             self.last_action = "previous"
+                            self.gestures_previous += 1
                             self.detector.mark_triggered(now)
                     else:
                         self.detector.reset_samples()
@@ -441,6 +452,14 @@ class SlideWaveApp:
         finally:
             cap.release()
             cv2.destroyAllWindows()
+            logging.info(
+                "Podsumowanie uruchomienia: frames_read=%s, frames_dropped=%s, hand_detections=%s, gestures_next=%s, gestures_previous=%s",
+                self.frames_read,
+                self.frames_dropped,
+                self.hand_detections,
+                self.gestures_next,
+                self.gestures_previous,
+            )
             logging.info("Zatrzymano program")
 
         return 0
@@ -487,9 +506,11 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
     parser.add_argument("--no-mirror", action="store_true")
     parser.add_argument("--exit-key", type=str, default="esc")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default="INFO")
+    parser.add_argument("--log-dir", type=str, default="logs/hand_wave")
 
     args = parser.parse_args(argv)
-    logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
+    run_log_path = configure_run_logging(log_level=args.log_level, log_dir=args.log_dir)
+    logging.info("Konfiguracja logowania aktywna. Bieżący plik: %s", run_log_path)
 
     # Walidacja ROI zapobiega konfiguracjom powodującym błędną detekcję.
     x1, y1, x2, y2 = args.roi
