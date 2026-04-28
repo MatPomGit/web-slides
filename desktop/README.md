@@ -17,6 +17,7 @@ Aplikacja desktopowa pozwala sterować slajdami gestem dłoni wykrywanym przez k
 ## Struktura folderu
 
 - `hand_wave.py` – główna aplikacja,
+- `run_logger.py` – konfiguracja logowania do pliku i konsoli,
 - `environment.yml` – zależności Conda,
 - `run_hand_wave_conda.sh` – launcher przez Condę.
 
@@ -59,7 +60,8 @@ python hand_wave.py --debug
 - `--backend pyautogui|pynput` – wybór backendu wysyłania klawiszy,
 - `--roi X1 Y1 X2 Y2` – obszar aktywnej detekcji w proporcjach kadru,
 - `--wave-min-delta-x-px` – minimalny ruch poziomy,
-- `--min-horizontal-velocity-px-s` – minimalna prędkość ruchu.
+- `--min-horizontal-velocity-px-s` – minimalna prędkość ruchu,
+- `--log-dir` – katalog, gdzie zapisywane są logi kolejnych uruchomień.
 
 Pełna pomoc:
 
