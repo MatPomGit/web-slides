@@ -399,11 +399,41 @@ class SlideWaveApp:
             f"Last action: {self.last_action}",
             f"Press {self.cfg.exit_key.upper()} to quit",
         ]
+        lines.extend(self._build_detection_params_lines())
 
         y = 20
         for line in lines:
             cv2.putText(frame, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 1, cv2.LINE_AA)
             y += 22
+
+    def _build_detection_params_lines(self) -> List[str]:
+        """Buduje listę linii z aktywnymi parametrami detekcji do wyświetlenia w podglądzie."""
+        # Grupujemy parametry tematycznie, żeby użytkownik mógł szybciej diagnozować
+        # problematyczną konfigurację bez zaglądania do argumentów startowych.
+        roi_x1, roi_y1, roi_x2, roi_y2 = self.cfg.roi
+        return [
+            "Detection params:",
+            (
+                "  conf(det/track)="
+                f"{self.cfg.detection_confidence:.2f}/{self.cfg.tracking_confidence:.2f}, "
+                f"model={self.cfg.model_complexity}, hands={self.cfg.max_num_hands}"
+            ),
+            (
+                "  wave(win/dx/dy/vel)="
+                f"{self.cfg.wave_window_sec:.2f}s/{self.cfg.wave_min_delta_x_px}px/"
+                f"{self.cfg.wave_max_delta_y_px}px/{self.cfg.min_horizontal_velocity_px_s:.1f}px/s"
+            ),
+            (
+                "  arm(hold/open/fingers/samples)="
+                f"{self.cfg.arm_hold_sec:.2f}s/{self.cfg.require_open_hand}/"
+                f"{self.cfg.min_extended_fingers}/{self.cfg.min_samples_in_window}"
+            ),
+            (
+                "  roi="
+                f"({roi_x1:.2f}, {roi_y1:.2f}, {roi_x2:.2f}, {roi_y2:.2f}), "
+                f"cooldown={self.cfg.cooldown_sec:.2f}s"
+            ),
+        ]
 
     def stop(self, *_args) -> None:
         self.running = False
