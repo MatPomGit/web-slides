@@ -58,10 +58,13 @@ def resolve_mediapipe_hands():
         )
     )
     if hands_module is None:
+        # W nowszych wydaniach MediaPipe gałąź `solutions` bywa niewystawiona.
+        # Aplikacja korzysta z legacy API (`mp.solutions.hands`), więc podajemy
+        # użytkownikowi konkretną, sprawdzoną wersję pakietu.
         raise RuntimeError(
             "Nie znaleziono modułu MediaPipe Hands (`solutions.hands`). "
-            "Sprawdź instalację pakietu `mediapipe` oraz czy dostępny jest "
-            "wariant z modułem `solutions`."
+            "Ta aplikacja wymaga wariantu `mediapipe` z legacy API, np. "
+            "`mediapipe==0.10.14`."
         )
     return hands_module
 

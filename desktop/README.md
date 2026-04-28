@@ -94,3 +94,13 @@ Jeśli wykrywa **za rzadko**:
 
 3. **Brak reakcji na gesty**  
    Uruchom z `--debug` i dostrój parametry ROI oraz progi wykrywania.
+
+4. **`RuntimeError: Nie znaleziono modułu MediaPipe Hands (solutions.hands)`**  
+   Zainstalowałeś wydanie `mediapipe`, które nie wystawia legacy API `solutions`. Ten projekt używa API `mp.solutions.hands`, dlatego przypnij wersję pakietu:
+
+   ```bash
+   pip uninstall -y mediapipe
+   pip install mediapipe==0.10.14
+   ```
+
+   Następnie uruchom aplikację ponownie.

@@ -2,4 +2,4 @@
 opencv-python
 pyautogui
 pynput
-mediapipe
+mediapipe==0.10.14
