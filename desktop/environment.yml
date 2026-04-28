@@ -8,4 +8,4 @@ dependencies:
   - pynput
   - pip
   - pip:
-      - mediapipe
+      - mediapipe==0.10.14
