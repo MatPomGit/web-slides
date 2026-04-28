@@ -53,6 +53,8 @@ conda activate hand-wave
 python hand_wave.py --debug
 ```
 
+> **Uwaga:** nie uruchamiaj aplikacji z przypadkowego środowiska bazowego (np. `base`), bo może to dać konflikt binarny NumPy/MediaPipe. Najbezpieczniej uruchamiać przez `run_hand_wave_conda.sh`.
+
 ## Najważniejsze argumenty programu
 
 - `--debug` – pokazuje okno podglądu i status detekcji,
@@ -62,6 +64,8 @@ python hand_wave.py --debug
 - `--wave-min-delta-x-px` – minimalny ruch poziomy,
 - `--min-horizontal-velocity-px-s` – minimalna prędkość ruchu,
 - `--log-dir` – katalog, gdzie zapisywane są logi kolejnych uruchomień.
+- `--no-quiet-third-party-logs` – pokazuje pełne logi bibliotek zewnętrznych (domyślnie są wyciszone),
+- `--show-protobuf-deprecation-warning` – pokazuje ostrzeżenie deprecacyjne protobuf (domyślnie ukryte).
 
 Pełna pomoc:
 
@@ -106,3 +110,13 @@ Jeśli wykrywa **za rzadko**:
    ```
 
    Następnie uruchom aplikację ponownie.
+
+5. **Błąd ABI NumPy (`A module that was compiled using NumPy 1.x cannot be run in NumPy 2.x`)**  
+   To oznacza konflikt wersji binarnych pakietów. Użyj dedykowanego środowiska projektu:
+
+   ```bash
+   cd desktop
+   ./run_hand_wave_conda.sh --create-env -- --debug
+   ```
+
+   Jeśli uruchamiasz ręcznie, przypnij `numpy<2` i odtwórz środowisko.

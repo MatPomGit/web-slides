@@ -14,13 +14,37 @@ import collections
 import dataclasses
 import importlib
 import logging
+import os
 import signal
 import time
+import warnings
 from typing import Deque, List, Optional, Tuple
 
 import cv2
-import mediapipe as mp
 from run_logger import configure_run_logging
+
+
+def configure_third_party_runtime(quiet: bool, hide_protobuf_deprecation: bool) -> None:
+    """Konfiguruje poziomy logów z bibliotek zewnętrznych, aby ograniczyć szum na STDERR."""
+    if quiet:
+        # TensorFlow Lite i MediaPipe emitują wiele logów native; poziom "2"
+        # zostawia tylko ostrzeżenia i błędy.
+        os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+        os.environ.setdefault("GLOG_minloglevel", "2")
+
+        # Ograniczamy też logowanie po stronie Pythona.
+        logging.getLogger("absl").setLevel(logging.ERROR)
+        logging.getLogger("tensorflow").setLevel(logging.ERROR)
+        logging.getLogger("mediapipe").setLevel(logging.ERROR)
+
+    if hide_protobuf_deprecation:
+        # Filtrujemy konkretne ostrzeżenie deprecacyjne z protobuf, które nie
+        # wpływa na działanie aplikacji i zaszumia konsolę.
+        warnings.filterwarnings(
+            "ignore",
+            message=r"SymbolDatabase\.GetPrototype\(\) is deprecated\..*",
+            category=UserWarning,
+        )
 
 
 def _import_first_available_module(module_names: Tuple[str, ...]):
@@ -33,8 +57,30 @@ def _import_first_available_module(module_names: Tuple[str, ...]):
     return None
 
 
+def _import_mediapipe_top_level():
+    """Importuje top-level `mediapipe` i mapuje najczęstsze błędy ABI na czytelny komunikat."""
+    try:
+        return importlib.import_module("mediapipe")
+    except Exception as exc:
+        # Przy mieszaniu binarek budowanych pod NumPy 1.x z NumPy 2.x
+        # import MediaPipe potrafi kończyć się długim tracebackiem z matplotlib.
+        # Podmieniamy go na krótką diagnozę z konkretną sugestią naprawy.
+        message = str(exc)
+        if "A module that was compiled using NumPy 1.x cannot be run in NumPy 2" in message:
+            raise RuntimeError(
+                "Wykryto konflikt ABI NumPy (moduły zbudowane dla NumPy 1.x uruchamiane z NumPy 2.x). "
+                "Uruchom aplikację przez `./run_hand_wave_conda.sh --create-env -- --debug` "
+                "albo przypnij `numpy<2` w aktualnym środowisku."
+            ) from exc
+        raise RuntimeError(
+            "Nie udało się zaimportować `mediapipe`. "
+            "Sprawdź zależności środowiska i uruchomienie przez launcher Conda."
+        ) from exc
+
+
 def resolve_mediapipe_hands():
     """Zwraca moduł MediaPipe Hands zgodny z różnymi wariantami instalacji."""
+    mp = _import_mediapipe_top_level()
     # W pierwszej kolejności próbujemy klasycznej ścieżki API.
     solutions = getattr(mp, "solutions", None)
     if solutions is not None and hasattr(solutions, "hands"):
@@ -72,6 +118,7 @@ def resolve_mediapipe_hands():
 
 def resolve_mediapipe_drawing_utils_module():
     """Zwraca moduł `drawing_utils` zgodny z różnymi wariantami MediaPipe."""
+    mp = _import_mediapipe_top_level()
     # Klasyczna ścieżka przez top-level `mediapipe.solutions`.
     solutions = getattr(mp, "solutions", None)
     if solutions is not None and hasattr(solutions, "drawing_utils"):
@@ -507,8 +554,36 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
     parser.add_argument("--exit-key", type=str, default="esc")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default="INFO")
     parser.add_argument("--log-dir", type=str, default="logs/hand_wave")
+    parser.add_argument(
+        "--quiet-third-party-logs",
+        action="store_true",
+        default=True,
+        help="Wycisza logi bibliotek zewnętrznych (TensorFlow/MediaPipe/absl).",
+    )
+    parser.add_argument(
+        "--no-quiet-third-party-logs",
+        action="store_false",
+        dest="quiet_third_party_logs",
+        help="Nie wycisza logów bibliotek zewnętrznych.",
+    )
+    parser.add_argument(
+        "--hide-protobuf-deprecation-warning",
+        action="store_true",
+        default=True,
+        help="Ukrywa znane ostrzeżenie deprecacyjne protobuf.",
+    )
+    parser.add_argument(
+        "--show-protobuf-deprecation-warning",
+        action="store_false",
+        dest="hide_protobuf_deprecation_warning",
+        help="Pokazuje ostrzeżenie deprecacyjne protobuf.",
+    )
 
     args = parser.parse_args(argv)
+    configure_third_party_runtime(
+        quiet=args.quiet_third_party_logs,
+        hide_protobuf_deprecation=args.hide_protobuf_deprecation_warning,
+    )
     run_log_path = configure_run_logging(log_level=args.log_level, log_dir=args.log_dir)
     logging.info("Konfiguracja logowania aktywna. Bieżący plik: %s", run_log_path)
 
