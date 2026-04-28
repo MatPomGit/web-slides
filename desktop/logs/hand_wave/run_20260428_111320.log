@@ -1,0 +1,6 @@
+2026-04-28 11:13:20,132 INFO Zainicjalizowano logowanie uruchomienia. Plik logu: logs/hand_wave/run_20260428_111320.log
+2026-04-28 11:13:20,132 INFO Konfiguracja logowania aktywna. Bieżący plik: logs/hand_wave/run_20260428_111320.log
+2026-04-28 11:13:20,351 INFO Start. Kamera=0, rozdzielczość=320x240, backend=pyautogui
+2026-04-28 11:14:16,911 WARNING Pominięto klatkę: błąd odczytu z kamery
+2026-04-28 11:14:16,921 INFO Podsumowanie uruchomienia: frames_read=1571, frames_dropped=1, hand_detections=111, gestures_next=0, gestures_previous=0
+2026-04-28 11:14:16,921 INFO Zatrzymano program
