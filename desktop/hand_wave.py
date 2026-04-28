@@ -320,6 +320,14 @@ class HandTracker:
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         return self.hands.process(rgb)
 
+    def close(self) -> None:
+        """Zamyka zasoby MediaPipe, aby proces nie trzymał urządzeń po wyjściu."""
+        # MediaPipe Hands udostępnia metodę `close`, która zwalnia zasoby
+        # natywne oraz wątki uruchomione przez runtime.
+        close_fn = getattr(self.hands, "close", None)
+        if callable(close_fn):
+            close_fn()
+
     @staticmethod
     def palm_center_px(hand_landmarks, width: int, height: int) -> Tuple[float, float]:
         ids = [0, 5, 9, 13, 17]
@@ -527,8 +535,16 @@ class SlideWaveApp:
                         break
 
         finally:
+            # Zawsze zwalniamy kamerę, nawet jeśli pętla zakończyła się wyjątkiem.
             cap.release()
-            cv2.destroyAllWindows()
+            # Zwolnienie zasobów MediaPipe zapobiega pozostawieniu aktywnych
+            # uchwytów/wątków, które mogły blokować ponowny start aplikacji.
+            self.tracker.close()
+            # W środowiskach headless `destroyAllWindows` może zgłaszać błąd.
+            try:
+                cv2.destroyAllWindows()
+            except cv2.error:
+                logging.debug("cv2.destroyAllWindows() pominięte (brak GUI).")
             logging.info(
                 "Podsumowanie uruchomienia: frames_read=%s, frames_dropped=%s, hand_detections=%s, gestures_next=%s, gestures_previous=%s",
                 self.frames_read,
