@@ -1,0 +1,14 @@
+# Kluczowe parametry detekcji gestów i czułości.
+# Wartości można stroić bez modyfikacji kodu aplikacji.
+gesture_detection:
+  detection_confidence: 0.65
+  tracking_confidence: 0.65
+  wave_window_sec: 0.45
+  wave_min_delta_x_px: 90
+  wave_max_delta_y_px: 110
+  min_samples_in_window: 5
+  min_horizontal_velocity_px_s: 220.0
+  cooldown_sec: 1.2
+  arm_hold_sec: 0.12
+  min_extended_fingers: 3
+  debug_action_flash_duration_sec: 3.0

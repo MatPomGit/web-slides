@@ -18,9 +18,11 @@ import os
 import signal
 import time
 import warnings
-from typing import Deque, List, Optional, Tuple
+from pathlib import Path
+from typing import Deque, Dict, List, Optional, Tuple
 
 import cv2
+import yaml
 from run_logger import configure_run_logging
 
 
@@ -150,6 +152,29 @@ def resolve_mediapipe_drawing_utils_module():
     return drawing_utils_module
 
 
+
+
+def _load_yaml_config(config_path: str) -> Dict[str, float]:
+    """Wczytuje konfigurację YAML i zwraca słownik z parametrami detekcji gestów."""
+    # Ścieżkę relatywną interpretujemy względem katalogu `desktop`,
+    # aby uruchomienie z innego CWD nadal używało poprawnego pliku.
+    resolved_path = Path(config_path)
+    if not resolved_path.is_absolute():
+        resolved_path = Path(__file__).resolve().parent / resolved_path
+
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Nie znaleziono pliku konfiguracji YAML: {resolved_path}")
+
+    with resolved_path.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+
+    gesture = data.get("gesture_detection", {})
+    if not isinstance(gesture, dict):
+        raise ValueError("Sekcja `gesture_detection` w YAML musi być mapą klucz-wartość.")
+
+    return gesture
+
+
 class KeyboardBackend:
     """Abstrakcja wysyłania klawiszy do sterowania slajdami."""
     def press_next(self) -> None:
@@ -220,6 +245,7 @@ class Config:
     headless: bool = False
     mirror: bool = True
     exit_key: str = "esc"
+    debug_action_flash_duration_sec: float = 3.0
 
 
 @dataclasses.dataclass
@@ -363,6 +389,8 @@ class SlideWaveApp:
         self.hand_detections = 0
         self.gestures_next = 0
         self.gestures_previous = 0
+        self.debug_action_flash_until = 0.0
+        self.debug_action_color = (0, 255, 0)
 
     @staticmethod
     def _resolve_drawing_utils():
@@ -384,6 +412,23 @@ class SlideWaveApp:
     def _point_in_roi(self, x: float, y: float, width: int, height: int) -> bool:
         x1, y1, x2, y2 = self._roi_pixels(width, height)
         return x1 <= x <= x2 and y1 <= y <= y2
+
+
+    def _mark_debug_action(self, direction: str, now: float) -> None:
+        """Ustawia kolor komunikatów debugowych po wykryciu gestu na ograniczony czas."""
+        self.debug_action_flash_until = now + self.cfg.debug_action_flash_duration_sec
+        if direction == "right":
+            # OpenCV używa przestrzeni BGR, więc niebieski to (255, 0, 0).
+            self.debug_action_color = (255, 0, 0)
+        else:
+            # Czerwony w przestrzeni BGR to (0, 0, 255).
+            self.debug_action_color = (0, 0, 255)
+
+    def _debug_text_color(self, now: float) -> Tuple[int, int, int]:
+        """Zwraca kolor tekstu debugowego zależnie od aktywnej animacji po geście."""
+        if now <= self.debug_action_flash_until:
+            return self.debug_action_color
+        return (0, 255, 0)
 
     def _draw_debug(self, frame, hand_landmarks, cx: Optional[float], cy: Optional[float], ready: bool) -> None:
         h, w = frame.shape[:2]
@@ -410,8 +455,9 @@ class SlideWaveApp:
         lines.extend(self._build_detection_params_lines())
 
         y = 20
+        text_color = self._debug_text_color(time.time())
         for line in lines:
-            cv2.putText(frame, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(frame, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, text_color, 1, cv2.LINE_AA)
             y += 22
 
     def _build_detection_params_lines(self) -> List[str]:
@@ -513,12 +559,14 @@ class SlideWaveApp:
                             self.keyboard.press_next()
                             self.last_action = "next"
                             self.gestures_next += 1
+                            self._mark_debug_action("right", now)
                             self.detector.mark_triggered(now)
                         elif direction == "left":
                             logging.info("Wykryto gest w lewo -> PREVIOUS")
                             self.keyboard.press_previous()
                             self.last_action = "previous"
                             self.gestures_previous += 1
+                            self._mark_debug_action("left", now)
                             self.detector.mark_triggered(now)
                     else:
                         self.detector.reset_samples()
@@ -598,6 +646,7 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--no-mirror", action="store_true")
     parser.add_argument("--exit-key", type=str, default="esc")
+    parser.add_argument("--gesture-config", type=str, default="gesture_config.yaml")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default="INFO")
     parser.add_argument("--log-dir", type=str, default="logs/hand_wave")
     parser.add_argument(
@@ -638,6 +687,22 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
     if not (0.0 <= x1 < x2 <= 1.0 and 0.0 <= y1 < y2 <= 1.0):
         parser.error("ROI musi być w zakresie 0..1 i spełniać x1 < x2, y1 < y2")
 
+    yaml_config = _load_yaml_config(args.gesture_config)
+
+    # Parametry z YAML traktujemy jako źródło domyślne dla czułości detekcji.
+    # CLI nadal może je nadpisać, jeśli użytkownik poda jawnie flagi.
+    args.wave_window_sec = yaml_config.get("wave_window_sec", args.wave_window_sec)
+    args.wave_min_delta_x_px = yaml_config.get("wave_min_delta_x_px", args.wave_min_delta_x_px)
+    args.wave_max_delta_y_px = yaml_config.get("wave_max_delta_y_px", args.wave_max_delta_y_px)
+    args.min_samples_in_window = yaml_config.get("min_samples_in_window", args.min_samples_in_window)
+    args.min_horizontal_velocity_px_s = yaml_config.get("min_horizontal_velocity_px_s", args.min_horizontal_velocity_px_s)
+    args.cooldown_sec = yaml_config.get("cooldown_sec", args.cooldown_sec)
+    args.arm_hold_sec = yaml_config.get("arm_hold_sec", args.arm_hold_sec)
+    args.min_extended_fingers = yaml_config.get("min_extended_fingers", args.min_extended_fingers)
+    args.detection_confidence = yaml_config.get("detection_confidence", args.detection_confidence)
+    args.tracking_confidence = yaml_config.get("tracking_confidence", args.tracking_confidence)
+    args.debug_action_flash_duration_sec = yaml_config.get("debug_action_flash_duration_sec", 3.0)
+
     return Config(
         camera_id=args.camera_id,
         frame_width=args.frame_width,
@@ -661,6 +726,7 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
         headless=args.headless,
         mirror=not args.no_mirror,
         exit_key=args.exit_key.lower(),
+        debug_action_flash_duration_sec=args.debug_action_flash_duration_sec,
     )
 
 
