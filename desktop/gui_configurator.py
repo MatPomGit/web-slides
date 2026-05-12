@@ -212,9 +212,12 @@ class ConfiguratorWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, "Eksport konfiguracji", str(BASE_DIR / "gesture_export.yaml"), "YAML (*.yaml)")
         if not path:
             return
-        payload = self._current_payload()
-        Path(path).write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
-        self.statusBar().showMessage("Wyeksportowano konfigurację")
+        try:
+            payload = self._current_payload()
+            Path(path).write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
+            self.statusBar().showMessage("Wyeksportowano konfigurację")
+        except (ValueError, OSError) as exc:
+            QMessageBox.critical(self, "Błąd eksportu", str(exc))
 
     def import_config(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Import konfiguracji", str(BASE_DIR), "YAML (*.yaml)")
