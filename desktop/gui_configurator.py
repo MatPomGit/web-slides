@@ -223,12 +223,15 @@ class ConfiguratorWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Import konfiguracji", str(BASE_DIR), "YAML (*.yaml)")
         if not path:
             return
-        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-        gesture = data.get("gesture_detection", {})
-        for key, _label, _kind in PARAMS:
-            if key in gesture:
-                self.entries[key].setText(str(gesture[key]))
-        self.statusBar().showMessage("Zaimportowano konfigurację (nie zapisano jeszcze do pliku)")
+        try:
+            data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+            gesture = data.get("gesture_detection", {}) if isinstance(data, dict) else {}
+            for key, _label, _kind in PARAMS:
+                if key in gesture:
+                    self.entries[key].setText(str(gesture[key]))
+            self.statusBar().showMessage("Zaimportowano konfigurację (nie zapisano jeszcze do pliku)")
+        except (yaml.YAMLError, OSError) as exc:
+            QMessageBox.critical(self, "Błąd importu", f"Nie udało się zaimportować pliku: {exc}")
 
 
 if __name__ == "__main__":
