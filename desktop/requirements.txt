@@ -4,3 +4,4 @@ pyautogui
 pynput
 mediapipe==0.10.14
 PyYAML
+PyQt6
