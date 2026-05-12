@@ -169,14 +169,17 @@ class ConfiguratorWindow(QMainWindow):
             QMessageBox.critical(self, "Błąd", f"Brak pliku konfiguracji: {CONFIG_PATH}")
             return
 
-        data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
-        gesture = data.get("gesture_detection", {})
-        for key, _label, _kind in PARAMS:
-            self.entries[key].setText(str(gesture.get(key, "")))
+        try:
+            data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+            gesture = data.get("gesture_detection", {}) if isinstance(data, dict) else {}
+            for key, _label, _kind in PARAMS:
+                self.entries[key].setText(str(gesture.get(key, "")))
 
-        self.defaults = dict(gesture)
-        self.is_dirty = False
-        self.statusBar().showMessage("Wczytano konfigurację")
+            self.defaults = dict(gesture)
+            self.is_dirty = False
+            self.statusBar().showMessage("Wczytano konfigurację")
+        except (yaml.YAMLError, OSError) as exc:
+            QMessageBox.critical(self, "Błąd wczytywania", f"Nie udało się wczytać pliku: {exc}")
 
     def save_config(self) -> None:
         try:
