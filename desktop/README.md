@@ -20,6 +20,8 @@ Aplikacja desktopowa pozwala sterować slajdami gestem dłoni wykrywanym przez k
 - `run_logger.py` – konfiguracja logowania do pliku i konsoli,
 - `environment.yml` – zależności Conda,
 - `run_hand_wave_conda.sh` – launcher przez Condę.
+- `gui_configurator.py` – GUI (PyQt) do konfiguracji parametrów detekcji,
+
 
 ## Szybki start (Conda)
 
@@ -120,3 +122,17 @@ Jeśli wykrywa **za rzadko**:
    ```
 
    Jeśli uruchamiasz ręcznie, przypnij `numpy<2` i odtwórz środowisko.
+
+## GUI konfiguracji
+
+Uruchom lokalny konfigurator:
+
+```bash
+cd desktop
+python gui_configurator.py
+# wymaga: pip install pyqt6
+```
+
+GUI (PyQt) pozwala edytować `gesture_config.yaml`, obsługuje wyszukiwanie parametrów, import/eksport ustawień, automatyczny backup przed zapisem oraz sekcję przyszłych modułów (nieaktywne przyciski roadmapy).
+
+Szczegółowy plan rozwoju znajdziesz w `desktop/docs/plan_rozwoju_desktop.md`.
