@@ -184,17 +184,14 @@ class ConfiguratorWindow(QMainWindow):
     def save_config(self) -> None:
         try:
             payload = self._current_payload()
-        except ValueError as exc:
-            QMessageBox.critical(self, "Błąd walidacji", str(exc))
-            return
-
-        if CONFIG_PATH.exists():
-            BACKUP_PATH.write_text(CONFIG_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-
-        CONFIG_PATH.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
-        self.is_dirty = False
-        self.statusBar().showMessage("Zapisano konfigurację")
-        QMessageBox.information(self, "Zapisano", "Konfiguracja została zapisana.")
+            if CONFIG_PATH.exists():
+                BACKUP_PATH.write_text(CONFIG_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+            CONFIG_PATH.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
+            self.is_dirty = False
+            self.statusBar().showMessage("Zapisano konfigurację")
+            QMessageBox.information(self, "Zapisano", "Konfiguracja została zapisana.")
+        except (ValueError, OSError) as exc:
+            QMessageBox.critical(self, "Błąd zapisu", str(exc))
 
     def restore_defaults(self) -> None:
         if not self.defaults:
