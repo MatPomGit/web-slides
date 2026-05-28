@@ -47,6 +47,7 @@ PARAMS = [
 
 class ConfiguratorWindow(QMainWindow):
     def __init__(self) -> None:
+        """Inicjalizuje okno konfiguratora i wczytuje bieżącą konfigurację."""
         super().__init__()
         self.setWindowTitle("Hand Wave Desktop Configurator (PyQt)")
         self.resize(920, 720)
@@ -60,6 +61,7 @@ class ConfiguratorWindow(QMainWindow):
         self.load_config()
 
     def _build_ui(self) -> None:
+        """Buduje główny układ widżetów formularza konfiguracji."""
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
@@ -131,6 +133,7 @@ class ConfiguratorWindow(QMainWindow):
         self.statusBar().showMessage("Gotowe")
 
     def _build_menu(self) -> None:
+        """Buduje menu aplikacji z akcjami importu i eksportu."""
         menu = self.menuBar().addMenu("Plik")
 
         export_action = QAction("Eksportuj konfigurację…", self)
@@ -142,10 +145,12 @@ class ConfiguratorWindow(QMainWindow):
         menu.addAction(import_action)
 
     def mark_dirty(self) -> None:
+        """Oznacza formularz jako zmodyfikowany i aktualizuje status."""
         self.is_dirty = True
         self.statusBar().showMessage("Niezapisane zmiany")
 
     def filter_fields(self, text: str) -> None:
+        """Filtruje pola formularza na podstawie wpisanego tekstu."""
         needle = text.lower().strip()
         for i, (key, label, _kind) in enumerate(PARAMS):
             visible = not needle or needle in key.lower() or needle in label.lower()
@@ -155,6 +160,7 @@ class ConfiguratorWindow(QMainWindow):
                 label_widget.setVisible(visible)
 
     def _current_payload(self) -> dict[str, dict[str, Any]]:
+        """Zwraca dane formularza w strukturze zgodnej z plikiem YAML."""
         values = {}
         for key, _label, kind in PARAMS:
             raw = self.entries[key].text().strip()
@@ -165,6 +171,7 @@ class ConfiguratorWindow(QMainWindow):
         return {"gesture_detection": values}
 
     def load_config(self) -> None:
+        """Wczytuje konfigurację z pliku i uzupełnia pola formularza."""
         if not CONFIG_PATH.exists():
             QMessageBox.critical(self, "Błąd", f"Brak pliku konfiguracji: {CONFIG_PATH}")
             return
@@ -182,6 +189,7 @@ class ConfiguratorWindow(QMainWindow):
             QMessageBox.critical(self, "Błąd wczytywania", f"Nie udało się wczytać pliku: {exc}")
 
     def save_config(self) -> None:
+        """Zapisuje aktualne wartości formularza do pliku YAML."""
         try:
             payload = self._current_payload()
             if CONFIG_PATH.exists():
@@ -194,6 +202,7 @@ class ConfiguratorWindow(QMainWindow):
             QMessageBox.critical(self, "Błąd zapisu", str(exc))
 
     def restore_defaults(self) -> None:
+        """Przywraca wartości domyślne zapamiętane po ostatnim wczytaniu."""
         if not self.defaults:
             return
         for key, _label, _kind in PARAMS:
@@ -201,6 +210,7 @@ class ConfiguratorWindow(QMainWindow):
         self.statusBar().showMessage("Przywrócono wartości domyślne")
 
     def restore_backup(self) -> None:
+        """Przywraca konfigurację z pliku kopii zapasowej."""
         if not BACKUP_PATH.exists():
             QMessageBox.warning(self, "Brak backupu", f"Nie znaleziono backupu: {BACKUP_PATH}")
             return
@@ -209,6 +219,7 @@ class ConfiguratorWindow(QMainWindow):
         self.statusBar().showMessage("Przywrócono konfigurację z backupu")
 
     def export_config(self) -> None:
+        """Eksportuje bieżącą konfigurację do wskazanego pliku."""
         path, _ = QFileDialog.getSaveFileName(self, "Eksport konfiguracji", str(BASE_DIR / "gesture_export.yaml"), "YAML (*.yaml)")
         if not path:
             return
@@ -220,6 +231,7 @@ class ConfiguratorWindow(QMainWindow):
             QMessageBox.critical(self, "Błąd eksportu", str(exc))
 
     def import_config(self) -> None:
+        """Importuje konfigurację z zewnętrznego pliku YAML do formularza."""
         path, _ = QFileDialog.getOpenFileName(self, "Import konfiguracji", str(BASE_DIR), "YAML (*.yaml)")
         if not path:
             return

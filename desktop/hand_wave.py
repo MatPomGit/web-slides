@@ -19,7 +19,7 @@ import signal
 import time
 import warnings
 from pathlib import Path
-from typing import Deque, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import cv2
 import yaml
@@ -49,7 +49,7 @@ def configure_third_party_runtime(quiet: bool, hide_protobuf_deprecation: bool) 
         )
 
 
-def _import_first_available_module(module_names: Tuple[str, ...]):
+def _import_first_available_module(module_names: Tuple[str, ...]) -> Optional[Any]:
     """Importuje pierwszy dostępny moduł z listy kandydatów."""
     for module_name in module_names:
         try:
@@ -59,7 +59,7 @@ def _import_first_available_module(module_names: Tuple[str, ...]):
     return None
 
 
-def _import_mediapipe_top_level():
+def _import_mediapipe_top_level() -> Any:
     """Importuje top-level `mediapipe` i mapuje najczęstsze błędy ABI na czytelny komunikat."""
     try:
         return importlib.import_module("mediapipe")
@@ -80,7 +80,7 @@ def _import_mediapipe_top_level():
         ) from exc
 
 
-def resolve_mediapipe_hands():
+def resolve_mediapipe_hands() -> Any:
     """Zwraca moduł MediaPipe Hands zgodny z różnymi wariantami instalacji."""
     mp = _import_mediapipe_top_level()
     # W pierwszej kolejności próbujemy klasycznej ścieżki API.
@@ -118,7 +118,7 @@ def resolve_mediapipe_hands():
     return hands_module
 
 
-def resolve_mediapipe_drawing_utils_module():
+def resolve_mediapipe_drawing_utils_module() -> Any:
     """Zwraca moduł `drawing_utils` zgodny z różnymi wariantami MediaPipe."""
     mp = _import_mediapipe_top_level()
     # Klasyczna ścieżka przez top-level `mediapipe.solutions`.
@@ -269,13 +269,16 @@ class WaveDetector:
         self.state = DetectionState()
 
     def reset_samples(self) -> None:
+        """Czyści zbuforowane próbki ruchu dłoni."""
         self.samples.clear()
 
     def on_hand_lost(self) -> None:
+        """Resetuje stan uzbrojenia po utracie detekcji dłoni."""
         self.state.armed_since = None
         self.reset_samples()
 
     def add_sample(self, sample: Sample) -> None:
+        """Dodaje próbkę i utrzymuje okno czasowe detekcji."""
         self.samples.append(sample)
         while self.samples and (sample.timestamp - self.samples[0].timestamp) > self.cfg.wave_window_sec:
             self.samples.popleft()
@@ -284,6 +287,7 @@ class WaveDetector:
         return (now - self.state.last_trigger_time) < self.cfg.cooldown_sec
 
     def update_arming(self, now: float, hand_is_ready: bool) -> bool:
+        """Aktualizuje stan uzbrojenia i zwraca, czy gest może być klasyfikowany."""
         if not hand_is_ready:
             self.state.armed_since = None
             return False
@@ -293,6 +297,7 @@ class WaveDetector:
         return (now - self.state.armed_since) >= self.cfg.arm_hold_sec
 
     def classify_wave(self, now: float) -> Optional[str]:
+        """Klasyfikuje kierunek machnięcia jako `right` lub `left`."""
         if self._is_in_cooldown(now):
             return None
         if len(self.samples) < self.cfg.min_samples_in_window:
@@ -323,6 +328,7 @@ class WaveDetector:
         return "right" if net_dx > 0 else "left"
 
     def mark_triggered(self, now: float) -> None:
+        """Rejestruje wyzwolenie gestu i uruchamia cooldown."""
         self.state.last_trigger_time = now
         self.state.armed_since = None
         self.reset_samples()
@@ -342,7 +348,7 @@ class HandTracker:
             min_tracking_confidence=self.cfg.tracking_confidence,
         )
 
-    def process(self, frame_bgr):
+    def process(self, frame_bgr: Any) -> Any:
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         return self.hands.process(rgb)
 
@@ -355,14 +361,14 @@ class HandTracker:
             close_fn()
 
     @staticmethod
-    def palm_center_px(hand_landmarks, width: int, height: int) -> Tuple[float, float]:
+    def palm_center_px(hand_landmarks: Any, width: int, height: int) -> Tuple[float, float]:
         ids = [0, 5, 9, 13, 17]
         xs = [hand_landmarks.landmark[i].x * width for i in ids]
         ys = [hand_landmarks.landmark[i].y * height for i in ids]
         return sum(xs) / len(xs), sum(ys) / len(ys)
 
     @staticmethod
-    def count_extended_fingers(hand_landmarks) -> int:
+    def count_extended_fingers(hand_landmarks: Any) -> int:
         landmarks = hand_landmarks.landmark
         tip_pip_pairs = [(8, 6), (12, 10), (16, 14), (20, 18)]
         count = sum(1 for tip, pip in tip_pip_pairs if landmarks[tip].y < landmarks[pip].y)
@@ -393,7 +399,7 @@ class SlideWaveApp:
         self.debug_action_color = (0, 255, 0)
 
     @staticmethod
-    def _resolve_drawing_utils():
+    def _resolve_drawing_utils() -> Any:
         """Zwraca narzędzia do rysowania MediaPipe kompatybilne z bieżącą instalacją."""
         return resolve_mediapipe_drawing_utils_module()
 
@@ -430,7 +436,7 @@ class SlideWaveApp:
             return self.debug_action_color
         return (0, 255, 0)
 
-    def _draw_debug(self, frame, hand_landmarks, cx: Optional[float], cy: Optional[float], ready: bool) -> None:
+    def _draw_debug(self, frame: Any, hand_landmarks: Any, cx: Optional[float], cy: Optional[float], ready: bool) -> None:
         h, w = frame.shape[:2]
         x1, y1, x2, y2 = self._roi_pixels(w, h)
         cv2.rectangle(frame, (x1, y1), (x2, y2), (80, 200, 80), 2)
@@ -489,7 +495,7 @@ class SlideWaveApp:
             ),
         ]
 
-    def stop(self, *_args) -> None:
+    def stop(self, *_args: Any) -> None:
         self.running = False
 
     def run(self) -> int:
@@ -615,6 +621,7 @@ class SlideWaveApp:
 
 
 def parse_args(argv: Optional[List[str]] = None) -> Config:
+    """Parsuje argumenty CLI i buduje obiekt konfiguracji aplikacji."""
     parser = argparse.ArgumentParser(description="Sterowanie slajdami machnięciem dłoni")
     parser.add_argument("--camera-id", type=int, default=0)
     parser.add_argument("--frame-width", type=int, default=320)
@@ -731,6 +738,7 @@ def parse_args(argv: Optional[List[str]] = None) -> Config:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    """Uruchamia aplikację sterowania slajdami i zwraca kod wyjścia."""
     config = parse_args(argv)
     app = SlideWaveApp(config)
     return app.run()
